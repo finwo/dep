@@ -1,9 +1,23 @@
 #!/usr/bin/env bash
 
+# Make sure the required stuff exists
+[ -d ~/.cdeps ] || mkdir -p ~/.cdeps
+[ -f ~/.cdeps/repositories ] || touch ~/.cdeps/repositories
+
 case "$1" in
   list)
+    cat ~/.cdeps/repositories
+    ;;
+  add)
+    
+    ;;
+  update)
+    
+    ;;
+  remove)
+    ;;
   *)
-    echo "Usage: $0 ()"
+    echo "Usage: $0 (list|add|update|remove)"
     exit 1
     ;;
 esac
