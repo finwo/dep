@@ -25,7 +25,7 @@ containsElement () {
 [ -d ~/.cdeps ] || mkdir -p ~/.cdeps
 [ -f ~/.cdeps/config ] || touch ~/.cdeps/config
 [ -f ~/.cdeps/repositories ] || {
-  echo "https://github.com/cdeps/deps-repository/archive/master.tar.gz" > ~/.cdeps/repositories
+  echo "https://github.com/cdeps/dep-repository/archive/master.tar.gz" > ~/.cdeps/repositories
 }
 
 # Load the user's configuration
