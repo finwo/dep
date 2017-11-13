@@ -3,7 +3,7 @@
 # Make sure the required stuff exists
 [ -d ~/.cdeps ] || mkdir -p ~/.cdeps
 [ -f ~/.cdeps/repositories ] || {
-  echo "https://github.com/cdeps/deps-repository/archive/master.tar.gz" > ~/.cdeps/repositories
+  echo "https://github.com/cdeps/dep-repository/archive/master.tar.gz" > ~/.cdeps/repositories
 }
 
 # Regex for validating URLs
@@ -35,7 +35,17 @@ case "$1" in
     ;;
 
   update)
-    
+
+    # Make sure the extraction folder exists
+    [ -d ~/.cdeps/packages ] || {
+      mkdir -p ~/.cdeps/packages
+    }
+
+    # Simply download all package references
+    cd ~/.cdeps/packages
+    for i in $(cat ~/.cdeps/repositories); do
+      curl -fL# "$i" | tar --strip-components=1 -xzf -
+    done
 
     ;;
   remove)
