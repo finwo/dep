@@ -2,7 +2,9 @@
 
 # Make sure the required stuff exists
 [ -d ~/.cdeps ] || mkdir -p ~/.cdeps
-[ -f ~/.cdeps/repositories ] || touch ~/.cdeps/repositories
+[ -f ~/.cdeps/repositories ] || {
+  echo "https://github.com/cdeps/deps-repository/archive/master.tar.gz" > ~/.cdeps/repositories
+}
 
 # Regex for validating URLs
 # https://stackoverflow.com/a/3184819
@@ -16,7 +18,7 @@ case "$1" in
   add)
 
     # The user must give a url we're using
-    if [[ -n "$2" ]]; then
+    if [[ -z "$2" ]]; then
       echo "No repository url given" >&2
       exit 1
     fi
@@ -29,10 +31,12 @@ case "$1" in
 
     # Save, further checks haven't been written
     echo "$2" >> ~/.cdeps/repositories
+    echo "The following URL was added: $2"
     ;;
 
   update)
     
+
     ;;
   remove)
     ;;
