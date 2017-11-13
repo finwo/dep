@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+# Useful function
+# See http://wiki.bash-hackers.org/howto/conffile
+clean_conf () {
+  # check if the file contains something we don't want
+  if egrep -q -v '^#|^[^ ]*=[^;]*' "$1"; then
+    echo "Config file ($1) is unclean, cleaning it..." >&2
+    # filter the original to a new file
+    mv $1 $1.bak
+    egrep '^#|^[^ ]*=[^;&]*'  "$1.bak" > "$1"
+  fi
+}
+
+# Load the global configuration
+[ -f /etc/cdeps/config ] && {
+  clean_conf /etc/cdeps/config
+  source /etc/cdeps/config
+}
+
+# Load the user's configuration
+[ -f ~/.cdeps ] && {
+  clean_conf ~/.cdeps
+  source ~/.cdeps
+}
+
+case "$1" in
+  add)
+    ;;
+  install)
+    ;;
+  init)
+    ;;
+  *)
+    echo "Usage: $0 (add|install|init)"
+    exit 1
+    ;;
+esac
