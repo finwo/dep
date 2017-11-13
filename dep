@@ -12,27 +12,28 @@ clean_conf () {
   fi
 }
 
-# Load the global configuration
-[ -f /etc/cdeps/config ] && {
-  clean_conf /etc/cdeps/config
-  source /etc/cdeps/config
-}
-
 # Load the user's configuration
-[ -f ~/.cdeps ] && {
-  clean_conf ~/.cdeps
-  source ~/.cdeps
+[ -f ~/.cdeps/config ] && {
+  clean_conf ~/.cdeps/config
+  source ~/.cdeps/config
 }
 
 case "$1" in
+  init)
+    [ -d ~/.cdeps ] || mkdir -p ~/.cdeps
+    
+    ;;
   add)
     ;;
   install)
     ;;
-  init)
-    ;;
   *)
-    echo "Usage: $0 (add|install|init)"
-    exit 1
+    # Check for user-defined
+    if command -v $0-$1 &>/dev/null; then
+      $0-$1 "${@:2}"
+    else
+      echo "Usage: $0 (repo|init|add|install)"
+      exit 1
+    fi
     ;;
 esac
