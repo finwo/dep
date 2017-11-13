@@ -4,13 +4,33 @@
 [ -d ~/.cdeps ] || mkdir -p ~/.cdeps
 [ -f ~/.cdeps/repositories ] || touch ~/.cdeps/repositories
 
+# Regex for validating URLs
+# https://stackoverflow.com/a/3184819
+urlcheck='^(https?|ftp|file)://[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-A-Za-z0-9\+&@#/%=~_|]$'
+
 case "$1" in
   list)
     cat ~/.cdeps/repositories
     ;;
+
   add)
-    
+
+    # The user must give a url we're using
+    if [[ -n "$2" ]]; then
+      echo "No repository url given" >&2
+      exit 1
+    fi
+
+    # The url must be valid
+    [[ "$2" =~ $urlcheck ]] || {
+      echo "Given url is not valid" >&2
+      exit 1
+    }
+
+    # Save, further checks haven't been written
+    echo "$2" >> ~/.cdeps/repositories
     ;;
+
   update)
     
     ;;
