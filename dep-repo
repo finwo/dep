@@ -49,6 +49,13 @@ case "$1" in
 
     ;;
   remove)
+
+    # Notify this is a todo
+    echo "This call is not implemented yet" >&2
+    echo "To remove a repository, please manually edit the following file:" >&2
+    echo "  ~/.dep/repositories" >&2
+    exit 1
+
     ;;
   *)
     echo "Usage: $0 (list|add|update|remove)"
