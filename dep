@@ -38,7 +38,7 @@ case "$1" in
   init)
 
     # Sanity check
-    if [ -f .dependencies ]; then
+    if [ -f .dep ]; then
       echo "Project already initialized." >&2
       echo "Remove the .dependencies file if you want to start over." >&2
       exit 1
@@ -61,9 +61,9 @@ case "$1" in
     }
 
     # Write to file
-    echo "AUTHOR=$author" > .dependencies
-    echo "NAME=$projectname" >> .dependencies
-    echo "DEPS=()" >> .dependencies
+    echo "AUTHOR=$author"    >  .dep
+    echo "NAME=$projectname" >> .dep
+    echo "DEPS=()"           >> .dep
 
     # Check for git compliance
     if [ -d .git ]; then
@@ -79,14 +79,14 @@ case "$1" in
   add)
 
     # Verify the project is initialized
-    [ -f .dependencies ] || {
+    [ -f .dep ] || {
       echo "The current folder isn't a project root." >&2
       echo "Initialize it by running '$0 init'." >&2
       exit 1
     }
 
     # Clean config if needed
-    clean_conf .dependencies
+    clean_conf .dep
 
     # Verify the fiven package name
     [ -n "$2" ] || {
@@ -95,12 +95,13 @@ case "$1" in
     }
 
     # Check if the given package is known
-    [ -f "~/.dep/packages/$2" ] || {
+    [ -d "~/.dep/packages/$2" ] || {
       echo "Package not found" >&2
       exit 1
     }
 
-    echo "DEPS+=(\"$2\")" >> .dependencies
+    # No further checks yet, add it to the list
+    echo "DEPS+=(\"$2\")" >> .dep
     ;;
   install)
     ;;
