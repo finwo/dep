@@ -61,8 +61,8 @@ case "$1" in
     }
 
     # Write to file
-    echo "AUTHOR=$author"    >  .dep
-    echo "NAME=$projectname" >> .dep
+    echo "AUTHOR=\"$author\""    >  .dep
+    echo "NAME=\"$projectname\"" >> .dep
     echo "DEPS=()"           >> .dep
 
     # Check for git compliance
@@ -95,7 +95,7 @@ case "$1" in
     }
 
     # Check if the given package is known
-    [ -d "~/.dep/packages/$2" ] || {
+    [ -d ~/.dep/packages/$2 ] || {
       echo "Package not found" >&2
       exit 1
     }
@@ -104,6 +104,128 @@ case "$1" in
     echo "DEPS+=(\"$2\")" >> .dep
     ;;
   install)
+
+    # Verify the project is initialized
+    [ -f .dep ] || {
+      echo "The current folder isn't a project root." >&2
+      echo "Initialize it by running '$0 init'." >&2
+      exit 1
+    }
+
+    # Clean config if needed
+    clean_conf .dep
+
+    # If no arguments were given, install all
+    [ -n "$2" ] || {
+
+      # Clear file-building steps
+      rm -rf lib/.dep
+      mkdir -p lib/.dep
+
+      # Load config
+      source .dep
+
+      # Install dependencies
+      for dependency in $DEPS; do
+        $0 $1 $dependency || {
+          echo "Installing dependencies failed" >&2
+          echo "Error thrown during '$dependency' or one of it's dependencies" >&2
+          exit 1
+        }
+      done
+
+      # Delete directed buildfiles
+      for i in {00..99}; do
+        for file in $(find lib/.dep -name "$i-*"); do
+          outname=$(basename $file | cut -c 4-)
+          rm -f $outname
+        done
+      done
+
+      # Write directed buildfiles
+      for i in {00..99}; do
+        for file in $(find lib/.dep -name "$i-*"); do
+          outname=$(basename $file | cut -c 4-)
+          echo "Writing $file to $outname"
+          cat $file >> $outname
+        done
+      done
+
+      exit 0
+    }
+
+    # Notify we're working on this dependency
+    echo "Installing: $2"
+
+    # Make sure we know the dependency
+    [ -d ~/.dep/packages/$2 ] || {
+      echo "Package not found" >&2
+      exit 1
+    }
+
+    # Check the config exists
+    [ -f ~/.dep/packages/$2/config ] || {
+      echo "Package does not contain a config" >&2
+      exit 1
+    }
+
+    # Load the package config
+    clean_conf ~/.dep/packages/$2/config
+    source ~/.dep/packages/$2/config
+
+    # Verify tarball is set
+    [ -n "$tarball" ] || {
+      echo "Tarball is not configured for this package" >&2
+      exit 1
+    }
+
+    # Verify the sha256 is set
+    [ -n "$sha256" ] || {
+      echo "Sha256 checksum for this package is not configured" >&2
+      exit 1
+    }
+
+    # Download the tarball into memory
+    temp_file=$(mktemp)
+    curl -fL# "$tarball" > $temp_file
+
+    [ $? -eq 0 ] || {
+      echo "Could not fetch tarball" >&2
+      exit 1
+    }
+
+    # Verify checksum
+    SUM=$(sha256sum -b $temp_file | cut -d " " -f 1)
+    [[ "$sha256" == "$SUM" ]] || {
+      echo "Checksum did not match" >&2
+      exit 1
+    }
+
+    # Write to the lib folder
+    orgdir=$(pwd)
+    mkdir -p lib/$2
+    cd lib/$2
+    tar --strip-components=1 -xzf $temp_file
+    cd $orgdir
+
+    # Process the library's dependencies if needed
+    if [ -f lib/$2/.dep ]; then
+      clean_conf lib/$2/.dep
+      source lib/$2/.dep
+      for dependency in $DEPS; do
+        $0 $1 $dependency exit 1
+      done
+    fi
+
+    # Process included build-files
+    for i in {00..99}; do
+      for file in $(find ~/.dep/packages/$2 -name "$i-*"); do
+        outname=$(basename $file)
+        echo "Adding $file to $outname"
+        cat $file >> lib/.dep/$outname
+      done
+    done
+
     ;;
   help)
     cat <<EOF
