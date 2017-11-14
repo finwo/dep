@@ -22,15 +22,15 @@ containsElement () {
 }
 
 # Make sure the required stuff exists
-[ -d ~/.cdeps ] || mkdir -p ~/.cdeps
-[ -f ~/.cdeps/config ] || touch ~/.cdeps/config
-[ -f ~/.cdeps/repositories ] || {
-  echo "https://github.com/cdeps/dep-repository/archive/master.tar.gz" > ~/.cdeps/repositories
+[ -d ~/.dep ] || mkdir -p ~/.dep
+[ -f ~/.dep/config ] || touch ~/.dep/config
+[ -f ~/.dep/repositories ] || {
+  echo "https://github.com/cdeps/dep-repository/archive/master.tar.gz" > ~/.dep/repositories
 }
 
 # Load the user's configuration
-clean_conf ~/.cdeps/config
-source ~/.cdeps/config
+clean_conf ~/.dep/config
+source ~/.dep/config
 
 # Let's see what to do
 case "$1" in
@@ -95,7 +95,7 @@ case "$1" in
     }
 
     # Check if the given package is known
-    [ -f "~/.cdeps/packages/$2" ] || {
+    [ -f "~/.dep/packages/$2" ] || {
       echo "Package not found" >&2
       exit 1
     }

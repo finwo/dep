@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # Make sure the required stuff exists
-[ -d ~/.cdeps ] || mkdir -p ~/.cdeps
-[ -f ~/.cdeps/repositories ] || {
-  echo "https://github.com/cdeps/dep-repository/archive/master.tar.gz" > ~/.cdeps/repositories
+[ -d ~/.dep ] || mkdir -p ~/.dep
+[ -f ~/.dep/repositories ] || {
+  echo "https://github.com/cdeps/dep-repository/archive/master.tar.gz" > ~/.dep/repositories
 }
 
 # Regex for validating URLs
@@ -12,7 +12,7 @@ urlcheck='^(https?|ftp|file)://[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-A-Za-z0-9\+&@#/%=
 
 case "$1" in
   list)
-    cat ~/.cdeps/repositories
+    cat ~/.dep/repositories
     ;;
 
   add)
@@ -30,20 +30,20 @@ case "$1" in
     }
 
     # Save, further checks haven't been written
-    echo "$2" >> ~/.cdeps/repositories
+    echo "$2" >> ~/.dep/repositories
     echo "The following URL was added: $2"
     ;;
 
   update)
 
     # Make sure the extraction folder exists
-    [ -d ~/.cdeps/packages ] || {
-      mkdir -p ~/.cdeps/packages
+    [ -d ~/.dep/packages ] || {
+      mkdir -p ~/.dep/packages
     }
 
     # Simply download all package references
-    cd ~/.cdeps/packages
-    for i in $(cat ~/.cdeps/repositories); do
+    cd ~/.dep/packages
+    for i in $(cat ~/.dep/repositories); do
       curl -fL# "$i" | tar --strip-components=1 -xzf -
     done
 
