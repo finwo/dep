@@ -34,6 +34,20 @@ case "$1" in
     echo "The following URL was added: $2"
     ;;
 
+  clean)
+
+    # Remove all packages
+    rm -rf ~/.dep/packages && {
+      echo "All packages have been removed"
+      echo "Please run '$0 update' to fetch up-to-date versions"
+    } || {
+      echo "Unable to remove all packages" >&2
+      echo "Please check the permissions for ~/.dep/packages" >&2
+      exit 1
+    }
+
+    ;;
+
   update)
 
     # Make sure the extraction folder exists
@@ -58,7 +72,7 @@ case "$1" in
 
     ;;
   *)
-    echo "Usage: $0 (list|add|update|remove)"
+    echo "Usage: $0 (list|add|clean|update|remove)"
     exit 1
     ;;
 esac
