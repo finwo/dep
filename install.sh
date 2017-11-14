@@ -29,7 +29,7 @@ command -v curl &>/dev/null || {
 }
 
 # Default install directory
-mkdir -p /usr/local/bin/dep
+mkdir -p /usr/local/bin
 
 # Main script
 curl -L# https://raw.githubusercontent.com/cdeps/dep/master/dep > /usr/local/bin/dep

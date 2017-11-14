@@ -126,7 +126,7 @@ case "$1" in
       source .dep
 
       # Install dependencies
-      for dependency in $DEPS; do
+      for dependency in "${DEPS[@]}"; do
         $0 $1 $dependency || {
           echo "Installing dependencies failed" >&2
           echo "Error thrown during '$dependency' or one of it's dependencies" >&2
@@ -212,7 +212,7 @@ case "$1" in
     if [ -f lib/$2/.dep ]; then
       clean_conf lib/$2/.dep
       source lib/$2/.dep
-      for dependency in $DEPS; do
+      for dependency in "${DEPS[@]}"; do
         $0 $1 $dependency exit 1
       done
     fi
