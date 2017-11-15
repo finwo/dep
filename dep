@@ -129,6 +129,7 @@ case "$1" in
       for i in {00..99}; do
         for file in $(find build -name "$i-*"); do
           outname=$(basename $file)
+          echo "Adding $file to $outname"
           cat $file >> lib/.dep/$outname
         done
       done
