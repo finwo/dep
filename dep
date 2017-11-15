@@ -125,6 +125,14 @@ case "$1" in
       # Load config
       source .dep
 
+      # Prepare build files
+      for i in {00..99}; do
+        for file in $(find build -name "$i-*"); do
+          outname=$(basename $file)
+          cat $file >> lib/.dep/$outname
+        done
+      done
+
       # Install dependencies
       for dependency in "${DEPS[@]}"; do
         $0 $1 $dependency || {
