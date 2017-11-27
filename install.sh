@@ -8,7 +8,7 @@ fi
 
 # Print "logo"
 echo " ,_,"
-echo " (v)  DEP general-purpose"
+echo " )v(  DEP general-purpose"
 echo " \\_/      dependency manager"
 echo "==\"=="
 
