@@ -23,6 +23,7 @@ containsElement () {
 
 # Make sure the required stuff exists
 [ -d ~/.dep ] || mkdir -p ~/.dep
+[ -d ~/.dep/cache ] || mkdir -p ~/.dep/cache
 [ -f ~/.dep/config ] || touch ~/.dep/config
 [ -f ~/.dep/repositories ] || {
   echo "https://github.com/cdeps/dep-repository/archive/master.tar.gz" > ~/.dep/repositories
@@ -167,16 +168,17 @@ case "$1" in
 
     # Notify we're working on this dependency
     echo "Installing: $2"
+    echo "  Verifying package"
 
     # Make sure we know the dependency
     [ -d ~/.dep/packages/$2 ] || {
-      echo "Package not found" >&2
+      echo "  Package not found" >&2
       exit 1
     }
 
     # Check the config exists
     [ -f ~/.dep/packages/$2/config ] || {
-      echo "Package does not contain a config" >&2
+      echo "  Package does not contain a config" >&2
       exit 1
     }
 
@@ -186,37 +188,50 @@ case "$1" in
 
     # Verify tarball is set
     [ -n "$tarball" ] || {
-      echo "Tarball is not configured for this package" >&2
+      echo "  Tarball is not configured for this package" >&2
       exit 1
     }
 
     # Verify the sha256 is set
     [ -n "$sha256" ] || {
-      echo "Sha256 checksum for this package is not configured" >&2
+      echo "  Sha256 checksum for this package is not configured" >&2
       exit 1
     }
 
-    # Download the tarball into memory
-    temp_file=$(mktemp)
-    curl -fL# "$tarball" > $temp_file
-
-    [ $? -eq 0 ] || {
-      echo "Could not fetch tarball" >&2
-      exit 1
-    }
+    # Don't DDoS github, check the cache first
+    cachefile=$(echo ~/.dep/cache/$2)
+    if [ -f $cachefile ]; then
+      echo "  Cache detected"
+      SUM=$(sha256sum -b $temp_file | cut -d " " -f 1)
+      [[ "$sha256" == "$SUM" ]] || {
+        echo "  Checksum did not match, updating cache"
+        curl -fL# "$tarball" > $cachefile
+        [ $? -eq 0 ] || {
+          echo "  Could not fetch tarball" >&2
+          exit 1
+        }
+      }
+    else
+      echo "  Cache not available, downloading"
+      curl -fL# "$tarball" > $cachefile
+      [ $? -eq 0 ] || {
+        echo "  Could not fetch tarball" >&2
+        exit 1
+      }
+    fi
 
     # Verify checksum
-    SUM=$(sha256sum -b $temp_file | cut -d " " -f 1)
+    SUM=$(sha256sum -b $cachefile | cut -d " " -f 1)
     [[ "$sha256" == "$SUM" ]] || {
-      echo "Checksum did not match" >&2
+      echo "  Checksum did not match" >&2
       exit 1
     }
 
-    # Write to the lib folder
+    # Extract to the lib folder
     orgdir=$(pwd)
     mkdir -p lib/$2
     cd lib/$2
-    tar --strip-components=1 -xzf $temp_file
+    tar --strip-components=1 -xzf $cachefile
     cd $orgdir
 
     # Process the library's dependencies if needed
