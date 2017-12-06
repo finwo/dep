@@ -202,7 +202,7 @@ case "$1" in
     cachefile=$(echo ~/.dep/cache/$2)
     if [ -f $cachefile ]; then
       echo "  Cache detected"
-      SUM=$(sha256sum -b $temp_file | cut -d " " -f 1)
+      SUM=$(sha256sum -b $cachefile | cut -d " " -f 1)
       [[ "$sha256" == "$SUM" ]] || {
         echo "  Checksum did not match, updating cache"
         curl -fL# "$tarball" > $cachefile
