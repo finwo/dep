@@ -213,6 +213,7 @@ case "$1" in
       }
     else
       echo "  Cache not available, downloading"
+      mkdir -p $(dirname $cachefile)
       curl -fL# "$tarball" > $cachefile
       [ $? -eq 0 ] || {
         echo "  Could not fetch tarball" >&2
