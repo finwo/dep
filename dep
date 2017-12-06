@@ -126,13 +126,15 @@ case "$1" in
       source .dep
 
       # Prepare build files
-      for i in {00..99}; do
-        for file in $(find build -name "$i-*"); do
-          outname=$(basename $file)
-          echo "Adding $file to $outname"
-          cat $file >> lib/.dep/$outname
+      if [ -d build ]; then
+        for i in {00..99}; do
+          for file in $(find build -name "$i-*"); do
+            outname=$(basename $file)
+            echo "Adding $file to $outname"
+            cat $file >> lib/.dep/$outname
+          done
         done
-      done
+      fi
 
       # Install dependencies
       for dependency in "${DEPS[@]}"; do
