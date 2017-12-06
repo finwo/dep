@@ -40,7 +40,7 @@ case "$1" in
     # Sanity check
     if [ -f .dep ]; then
       echo "Project already initialized." >&2
-      echo "Remove the .dependencies file if you want to start over." >&2
+      echo "Remove the .dep file if you want to start over." >&2
       exit 1
     fi
 
