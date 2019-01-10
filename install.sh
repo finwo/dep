@@ -21,7 +21,7 @@ function install {
       apt-get install "$1" -y -qq
       ;;
     apk)
-      apk add "$1" -y -qq
+      apk add "$1"
       ;;
     xbps-install)
       xbps-install "$1"
