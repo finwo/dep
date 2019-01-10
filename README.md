@@ -18,4 +18,60 @@ curl https://raw.githubusercontent.com/cdeps/dep/master/install.sh | bash
 
 ## Usage
 
-TODO
+### Initialize a project with DEP
+
+```bash
+dep init
+```
+
+Go into the repository you want to initialize and run `dep init`. This will create the file `.dep` which contains all that is needed for dep to work with.
+
+### Add a dependency
+
+```bash
+dep add <package-name>
+```
+
+### Install dependencies
+
+```bash
+dep install
+```
+
+You can also install a single package without adding it to the dependencies by running `dep install <package-name>`
+
+### Remove a dependency
+
+This is not implemented yet
+
+### Update packages from repositories
+
+```bash
+dep repo update
+```
+
+### Show which repositories are used
+
+```bash
+dep repo list
+```
+
+### Add a repository
+
+```bash
+dep repo add <url>
+```
+
+### Clean repository cache
+
+```bash
+dep repo clean
+```
+
+## TODO
+
+- Add remove-dep tool
+- Make the source nicer to read
+- Better documentation
+- Pick a proper name
+- Focus on C instead of general purpose?
