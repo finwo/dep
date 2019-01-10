@@ -6,11 +6,13 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-# Print "logo"
-echo " ,_,"
-echo " )v(  DEP general-purpose"
-echo " \\_/      dependency manager"
-echo "==\"=="
+# Print banner
+cat <<EOF
+ ,_,
+ )v( DEP general-purpose
+ \_/     dependency manager
+=="==
+EOF
 
 # Add system package
 function system {
