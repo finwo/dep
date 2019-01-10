@@ -12,7 +12,8 @@ echo " )v(  DEP general-purpose"
 echo " \\_/      dependency manager"
 echo "==\"=="
 
-function install {
+# Add system package
+function system {
   case "$(command -v apt apt-get apk xbps-install | head -1)" in
     apt)
       apt install "$1" -y -qq
@@ -34,16 +35,23 @@ function install {
   esac
 }
 
+# Install repo file
+function install {
+  [ -f "./$1" ] && {
+    echo "Copying $1"
+    cp "./$1" "/usr/local/bin/$1"
+  } || {
+    curl -L# "https://raw.githubusercontent.com/cdeps/dep/master/$1" > "/usr/local/bin/$1"
+  }
+  chmod +x "/usr/local/bin/$1"
+}
+
 # Ensure our dependencies
-command -v curl &>/dev/null || install curl
+command -v curl &>/dev/null || system curl
 
 # Default install directory
 mkdir -p /usr/local/bin
 
-# Main script
-curl -L# https://raw.githubusercontent.com/cdeps/dep/master/dep > /usr/local/bin/dep
-chmod +x /usr/local/bin/dep
-
-# Repository manager
-curl -L# https://raw.githubusercontent.com/cdeps/dep/master/dep-repo > /usr/local/bin/dep-repo
-chmod +x /usr/local/bin/dep-repo
+# Install our binaries
+install dep
+install dep-repo
