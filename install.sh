@@ -13,15 +13,18 @@ echo " \\_/      dependency manager"
 echo "==\"=="
 
 function install {
-  case "$(command -v apt apt-get apk | head -1)" in
+  case "$(command -v apt apt-get apk xbps-install | head -1)" in
     apt)
-      sudo apt install "$1" -y -qq
+      apt install "$1" -y -qq
       ;;
     apt-get)
-      sudo apt-get install "$1" -y -qq
+      apt-get install "$1" -y -qq
       ;;
     apk)
-      sudo apk add "$1" -y -qq
+      apk add "$1" -y -qq
+      ;;
+    xbps-install)
+      xbps-install "$1"
       ;;
     *)
       echo "No supported package manager detected"
