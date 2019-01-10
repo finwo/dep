@@ -8,10 +8,11 @@ fi
 
 # Print banner
 cat <<EOF
- ,_,
- )v(  C static dependency manager
- \_/
-=="==
+  ,_,   DEP
+  )v(
+  \_/   general-purpose
+ =="==  dependency manager
+
 EOF
 
 # Add system package
