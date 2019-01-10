@@ -9,42 +9,28 @@ fi
 # Print banner
 cat <<EOF
  ,_,
- )v( DEP general-purpose
- \_/     dependency manager
+ )v(  C static dependency manager
+ \_/
 =="==
 EOF
 
 # Add system package
 function system {
-  case "$(command -v apt apt-get apk xbps-install | head -1)" in
-    apt)
-      apt install "$1" -y -qq
-      ;;
-    apt-get)
-      apt-get install "$1" -y -qq
-      ;;
-    apk)
-      apk add "$1"
-      ;;
-    xbps-install)
-      xbps-install "$1"
-      ;;
-    *)
-      echo "No supported package manager detected"
-      echo "Please install '$1' to run this script"
-      exit 1
-      ;;
-  esac
+  command -v apt          &>/dev/null && { apt     install "$1" -y -qq; return; }
+  command -v apt-get      &>/dev/null && { apt-get install "$1" -y -qq; return; }
+  command -v apk          &>/dev/null && { apk     add     "$1"       ; return; }
+  command -v xbps-install &>/dev/null && { xbps-install    "$1"       ; return; }
+  echo "No supported package manager detected"
+  echo "Please install '$1' to run this script"
+  exit 1
 }
 
-# Install repo file
-function install {
+# Install repo binary
+function bin {
   [ -f "./$1" ] && {
     echo "Copying $1"
     cp "./$1" "/usr/local/bin/$1"
-  } || {
-    curl -L# "https://raw.githubusercontent.com/cdeps/dep/master/$1" > "/usr/local/bin/$1"
-  }
+  } || curl -L# "https://raw.githubusercontent.com/cdeps/dep/master/$1" > "/usr/local/bin/$1"
   chmod +x "/usr/local/bin/$1"
 }
 
@@ -55,5 +41,5 @@ command -v curl &>/dev/null || system curl
 mkdir -p /usr/local/bin
 
 # Install our binaries
-install dep
-install dep-repo
+bin dep
+bin dep-repo
