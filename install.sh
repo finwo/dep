@@ -12,21 +12,27 @@ echo " )v(  DEP general-purpose"
 echo " \\_/      dependency manager"
 echo "==\"=="
 
-# Check if curl is present
-command -v curl &>/dev/null || {
-
-  # Check if we can install it
-  command -v apt-get &>/dev/null || {
-    echo "cUrl is missing and we're not able to install it" >&2
-    exit 1
-  }
-
-  echo "Installing cUrl"
-  apt-get install -y -qq curl || {
-    echo "Unable to install cUrl"
-  }
-
+function install {
+  case "$(command -v apt apt-get apk | head -1)" in
+    apt)
+      sudo apt install "$1" -y -qq
+      ;;
+    apt-get)
+      sudo apt-get install "$1" -y -qq
+      ;;
+    apk)
+      sudo apk add "$1" -y -qq
+      ;;
+    *)
+      echo "No supported package manager detected"
+      echo "Please install '$1' to run this script"
+      exit 1
+      ;;
+  esac
 }
+
+# Ensure our dependencies
+command -v curl &>/dev/null || install curl
 
 # Default install directory
 mkdir -p /usr/local/bin
