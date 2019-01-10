@@ -75,3 +75,8 @@ dep repo clean
 - Better documentation
 - Pick a proper name
 - Focus on C instead of general purpose?
+
+## Contribute
+
+TODO: No Code of Conduct
+TODO: patreon page
