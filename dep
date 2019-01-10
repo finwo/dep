@@ -128,12 +128,10 @@ case "$1" in
 
       # Prepare build files
       if [ -d build ]; then
-        for i in {00..99}; do
-          for file in $(find build -name "$i-*"); do
-            outname=$(basename $file)
-            echo "Adding $file to $outname"
-            cat $file >> lib/.dep/$outname
-          done
+        for file in $(find build -type f -regex '.*/[0-9][0-9]*-.*' | sort); do
+          outname=$(basename $file)
+          echo "Adding $file to $outname"
+          cat $file >> lib/.dep/$outname
         done
       fi
 
@@ -147,20 +145,16 @@ case "$1" in
       done
 
       # Delete directed buildfiles
-      for i in {00..99}; do
-        for file in $(find lib/.dep -name "$i-*"); do
-          outname=$(basename $file | cut -c 4-)
-          rm -f $outname
-        done
+      for file in $(find lib/.dep -type f -regex '.*/[0-9][0-9]*-.*' | sort); do
+        outname=$(basename $file | cut -c 4-)
+        rm -f $outname
       done
 
       # Write directed buildfiles
-      for i in {00..99}; do
-        for file in $(find lib/.dep -name "$i-*"); do
-          outname=$(basename $file | cut -c 4-)
-          echo "Writing $file to $outname"
-          cat $file >> $outname
-        done
+      for file in $(find lib/.dep -type f -regex '.*/[0-9][0-9]*-.*' | sort); do
+        outname=$(basename $file | cut -c 4-)
+        echo "Writing $file to $outname"
+        cat $file >> $outname
       done
 
       exit 0
@@ -245,12 +239,10 @@ case "$1" in
     fi
 
     # Process included build-files
-    for i in {00..99}; do
-      for file in $(find ~/.dep/packages/$2 -name "$i-*"); do
-        outname=$(basename $file)
-        echo "Adding $file to $outname"
-        cat $file >> lib/.dep/$outname
-      done
+    for file in $(find ~/.dep/packages/$2 -type f -regex '.*/[0-9][0-9]*-.*' | sort); do
+      outname=$(basename $file)
+      echo "  Adding $file to $outname"
+      cat $file >> lib/.dep/$outname
     done
 
     ;;
