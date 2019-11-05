@@ -21,6 +21,13 @@ containsElement () {
   return 1
 }
 
+logo="
+  ,_,
+  )v(   general purpose
+  \\_/   dependency manager
+ ==\"==
+"
+
 # Make sure the required stuff exists
 [ -d ~/.dep ] || mkdir -p ~/.dep
 [ -d ~/.dep/cache ] || mkdir -p ~/.dep/cache
@@ -248,6 +255,7 @@ case "$1" in
     ;;
   help)
     cat <<EOF
+$logo
 
 LICENSE
 
