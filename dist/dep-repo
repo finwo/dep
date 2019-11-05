@@ -11,6 +11,18 @@
 urlcheck='^(https?|ftp|file)://[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-A-Za-z0-9\+&@#/%=~_|]$'
 
 case "$1" in
+  help)
+    echo "Usage: $0 command"
+    echo ""
+    echo "Commands:"
+    echo "  help          Show this help info"
+    echo "  list          List all repositories in use"
+    echo "  add   <url>   Add a repository"
+    echo "  clean         Remove dependency cache"
+    echo "  update        Update dependency cache"
+    echo ""
+    ;;
+
   list)
     cat ~/.dep/repositories
     ;;

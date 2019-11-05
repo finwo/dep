@@ -269,15 +269,25 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 EOF
     ;;
+
   help)
-    echo PLEH
+    echo "Usage: $0 command"
+    echo ""
+    echo "Commands:"
+    echo "  help               Show this help info"
+    echo "  repo    [help]     Repository management"
+    echo "  init               Initialize the current directory as a dep project"
+    echo "  add     <package>  Add a dependency"
+    echo "  install [package]  Install a package or all project dependencies"
+    echo ""
     ;;
+
   *)
     # Check for user-defined
     if command -v $0-$1 &>/dev/null; then
       $0-$1 "${@:2}"
     else
-      echo "Usage: $0 (repo|init|add|install|help)"
+      $0 help
       exit 1
     fi
     ;;
