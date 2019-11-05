@@ -2,7 +2,7 @@
 
 # Load pre-processor
 [ -f bashpp ] || {
-  wget https://raw.githubusercontent.com/iwonbigbro/bashpp/master/bin/bashpp
+  curl https://raw.githubusercontent.com/iwonbigbro/bashpp/master/bin/bashpp > bashpp
   chmod +x bashpp
 }
 
