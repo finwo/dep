@@ -1,0 +1,284 @@
+#!/usr/bin/env bash
+
+# Useful function
+# http://wiki.bash-hackers.org/howto/conffile
+clean_conf () {
+  # check if the file contains something we don't want
+  if egrep -q -v '^#|^[^ ]*=[^;]*' "$1"; then
+    echo "Config file ($1) is unclean, cleaning it..." >&2
+    # filter the original to a new file
+    mv $1 $1.bak
+    egrep '^#|^[^ ]*=[^;&]*'  "$1.bak" > "$1"
+  fi
+}
+
+# Useful function thanks to "patrik"
+# https://stackoverflow.com/a/8574392
+containsElement () {
+  local e match="$1"
+  shift
+  for e; do [[ "$e" == "$match" ]] && return 0; done
+  return 1
+}
+
+# Make sure the required stuff exists
+[ -d ~/.dep ] || mkdir -p ~/.dep
+[ -d ~/.dep/cache ] || mkdir -p ~/.dep/cache
+[ -f ~/.dep/config ] || touch ~/.dep/config
+[ -f ~/.dep/repositories ] || {
+  echo "https://github.com/cdeps/dep-repository/archive/master.tar.gz" > ~/.dep/repositories
+}
+
+# Load the user's configuration
+clean_conf ~/.dep/config
+source ~/.dep/config
+
+# Let's see what to do
+case "$1" in
+
+  init)
+
+    # Sanity check
+    if [ -f .dep ]; then
+      echo "Project already initialized." >&2
+      echo "Remove the .dep file if you want to start over." >&2
+      exit 1
+    fi
+
+    # Fetch the author name
+    fullname=$(getent passwd $(whoami) | cut -d ':' -f 5 | cut -d ',' -f 1 )
+    echo -n "Author [$fullname]: "
+    read author
+    [ -n "$author" ] || {
+      author=$fullname
+    }
+
+    # Fetch the project name
+    defaultname=$(basename $(pwd))
+    echo -n "Project name [$defaultname]:"
+    read projectname
+    [ -n "$projectname" ] || {
+      projectname=$defaultname
+    }
+
+    # Write to file
+    echo "AUTHOR=\"$author\""    >  .dep
+    echo "NAME=\"$projectname\"" >> .dep
+    echo "DEPS=()"           >> .dep
+
+    # Check for git compliance
+    if [ -d .git ]; then
+      read -r -p "Add /lib to .gitignore? [y/N] " response
+      response=${response,,}
+      if [[ "$response" =~ ^(yes|y)$ ]] ; then
+        echo "/lib" >> .gitignore
+      fi
+    fi
+
+    ;;
+
+  add)
+
+    # Verify the project is initialized
+    [ -f .dep ] || {
+      echo "The current folder isn't a project root." >&2
+      echo "Initialize it by running '$0 init'." >&2
+      exit 1
+    }
+
+    # Clean config if needed
+    clean_conf .dep
+
+    # Verify the fiven package name
+    [ -n "$2" ] || {
+      echo "No package name given." >&2
+      exit 1
+    }
+
+    # Check if the given package is known
+    [ -d ~/.dep/packages/$2 ] || {
+      echo "Package not found" >&2
+      exit 1
+    }
+
+    # No further checks yet, add it to the list
+    echo "DEPS+=(\"$2\")" >> .dep
+    ;;
+  install)
+
+    # Verify the project is initialized
+    [ -f .dep ] || {
+      echo "The current folder isn't a project root." >&2
+      echo "Initialize it by running '$0 init'." >&2
+      exit 1
+    }
+
+    # Clean config if needed
+    clean_conf .dep
+
+    # If no arguments were given, install all
+    [ -n "$2" ] || {
+
+      # Clear file-building steps
+      rm -rf lib/.dep
+      mkdir -p lib/.dep
+
+      # Load config
+      source .dep
+
+      # Prepare build files
+      if [ -d build ]; then
+        for file in $(find build -type f -regex '.*/[0-9][0-9]*-.*' | sort); do
+          outname=$(basename $file)
+          echo "Adding $file to $outname"
+          cat $file >> lib/.dep/$outname
+        done
+      fi
+
+      # Install dependencies
+      for dependency in "${DEPS[@]}"; do
+        $0 $1 $dependency || {
+          echo "Installing dependencies failed" >&2
+          echo "Error thrown during '$dependency' or one of it's dependencies" >&2
+          exit 1
+        }
+      done
+
+      # Delete directed buildfiles
+      for file in $(find lib/.dep -type f -regex '.*/[0-9][0-9]*-.*' | sort); do
+        outname=$(basename $file | cut -c 4-)
+        rm -f $outname
+      done
+
+      # Write directed buildfiles
+      for file in $(find lib/.dep -type f -regex '.*/[0-9][0-9]*-.*' | sort); do
+        outname=$(basename $file | cut -c 4-)
+        echo "Writing $file to $outname"
+        cat $file >> $outname
+      done
+
+      exit 0
+    }
+
+    # Notify we're working on this dependency
+    echo "Installing: $2"
+    echo "  Verifying package"
+
+    # Make sure we know the dependency
+    [ -d ~/.dep/packages/$2 ] || {
+      echo "  Package not found" >&2
+      exit 1
+    }
+
+    # Check the config exists
+    [ -f ~/.dep/packages/$2/config ] || {
+      echo "  Package does not contain a config" >&2
+      exit 1
+    }
+
+    # Load the package config
+    clean_conf ~/.dep/packages/$2/config
+    source ~/.dep/packages/$2/config
+
+    # Verify tarball is set
+    [ -n "$tarball" ] || {
+      echo "  Tarball is not configured for this package" >&2
+      exit 1
+    }
+
+    # Verify the sha256 is set
+    [ -n "$sha256" ] || {
+      echo "  Sha256 checksum for this package is not configured" >&2
+      exit 1
+    }
+
+    # Don't DDoS github, check the cache first
+    cachefile=$(echo ~/.dep/cache/$2)
+    if [ -f $cachefile ]; then
+      echo "  Cache detected"
+      SUM=$(sha256sum -b $cachefile | cut -d " " -f 1)
+      [[ "$sha256" == "$SUM" ]] || {
+        echo "  Checksum did not match, updating cache"
+        curl -fL# "$tarball" > $cachefile
+        [ $? -eq 0 ] || {
+          echo "  Could not fetch tarball" >&2
+          exit 1
+        }
+      }
+    else
+      echo "  Cache not available, downloading"
+      mkdir -p $(dirname $cachefile)
+      curl -fL# "$tarball" > $cachefile
+      [ $? -eq 0 ] || {
+        echo "  Could not fetch tarball" >&2
+        exit 1
+      }
+    fi
+
+    # Verify checksum
+    SUM=$(sha256sum -b $cachefile | cut -d " " -f 1)
+    [[ "$sha256" == "$SUM" ]] || {
+      echo "  Checksum did not match" >&2
+      exit 1
+    }
+
+    # Extract to the lib folder
+    orgdir=$(pwd)
+    mkdir -p lib/$2
+    cd lib/$2
+    tar --strip-components=1 -xzf $cachefile
+    cd $orgdir
+
+    # Process the library's dependencies if needed
+    if [ -f lib/$2/.dep ]; then
+      clean_conf lib/$2/.dep
+      source lib/$2/.dep
+      for dependency in "${DEPS[@]}"; do
+        $0 $1 $dependency exit 1
+      done
+    fi
+
+    # Process included build-files
+    for file in $(find ~/.dep/packages/$2 -type f -regex '.*/[0-9][0-9]*-.*' | sort); do
+      outname=$(basename $file)
+      echo "  Adding $file to $outname"
+      cat $file >> lib/.dep/$outname
+    done
+    ;;
+  license)
+    cat <<EOF
+The MIT License (MIT)
+
+Copyright (c) 2019 finwo
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+EOF
+    ;;
+  help)
+    echo PLEH
+    ;;
+  *)
+    # Check for user-defined
+    if command -v $0-$1 &>/dev/null; then
+      $0-$1 "${@:2}"
+    else
+      echo "Usage: $0 (repo|init|add|install|help)"
+      exit 1
+    fi
+    ;;
+esac
