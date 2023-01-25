@@ -3,23 +3,21 @@ SRC=$(wildcard src/*.sh)
 # Idea:
 # include lib/.dep/libraries.mk
 
+PREPROCESS=preprocess --substitute
+
 default: main
 
-bashpp:
-	curl https://raw.githubusercontent.com/iwonbigbro/bashpp/master/bin/bashpp > bashpp
-	chmod +x bashpp
-
-util/ini.sh: src/ini.sh src/shopt.sh
+util/ini.sh: src/util/ini.sh src/util/shopt.sh
 	mkdir -p util
 	echo '#!/usr/bin/env bash' > $@
-	./bashpp -I src -v src/ini.sh | tee -a $@ > /dev/null
+	$(PREPROCESS) -I src -v src/util/ini.sh | tee -a $@ > /dev/null
 	chmod +x $@
 
 .PHONY: main
-main: $(SRC) bashpp util/ini.sh
+main: $(SRC) util/ini.sh
 	@$(eval NAME=$(shell util/ini.sh package.ini package.name))
 	echo '#!/usr/bin/env bash' > "$(NAME)"
-	./bashpp -D __NAME=$(NAME) -I src -v src/main.sh | tee -a "$(NAME)" > /dev/null
+	$(PREPROCESS) -D __NAME=$(NAME) -I src src/main.sh | tee -a $(NAME) > /dev/null
 	chmod +x "$(NAME)"
 
 .PHONY: clean

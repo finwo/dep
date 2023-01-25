@@ -1,4 +1,7 @@
-#include "shopt.sh"
+# #ifndef __INI_SH__
+# #define __INI_SH__
+
+# #include "shopt.sh"
 
 # Arguments:
 #   $0 <fn_keyHandler> <str_filename> [section[.key]]
@@ -74,3 +77,6 @@ if [ $(basename $0) == "ini.sh" ]; then
     ini_foreach ini_output_${sectionMode} "$@"
   fi
 fi
+
+# __INI_SH__
+# #endif
