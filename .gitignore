@@ -1,4 +1,4 @@
-/.dep
-/lib
-*.swp
-bashpp
+/bak/
+/bashpp
+/util/
+/dep
