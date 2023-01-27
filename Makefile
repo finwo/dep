@@ -4,24 +4,27 @@ SRC=$(wildcard src/*.sh)
 # include lib/.dep/libraries.mk
 
 PREPROCESS=preprocess --substitute
+DESTDIR?=/usr/local
+TARGET=dep
 
-default: main
+default: $(TARGET)
 
-util/ini.sh: src/util/ini.sh src/util/shopt.sh
-	mkdir -p util
-	echo '#!/usr/bin/env bash' > $@
-	$(PREPROCESS) -I src -v src/util/ini.sh | tee -a $@ > /dev/null
-	chmod +x $@
+# util/ini.sh: src/util/ini.sh src/util/shopt.sh
+# 	mkdir -p util
+# 	echo '#!/usr/bin/env bash' > $@
+# 	$(PREPROCESS) -I src -v src/util/ini.sh | tee -a $@ > /dev/null
+# 	chmod +x $@
 
-.PHONY: main
-main: $(SRC) util/ini.sh
-	@$(eval NAME=$(shell util/ini.sh package.ini package.name))
-	echo '#!/usr/bin/env bash' > "$(NAME)"
-	$(PREPROCESS) -D __NAME=$(NAME) -I src src/main.sh | tee -a $(NAME) > /dev/null
-	chmod +x "$(NAME)"
+$(TARGET): $(SRC)
+	echo '#!/usr/bin/env bash' > "$(TARGET)"
+	$(PREPROCESS) -D __NAME=$(TARGET) -I src src/main.sh | tee -a $(TARGET) > /dev/null
+	chmod +x "$(TARGET)"
+
+.PHONY: install
+install: $(TARGET)
+	install "$(TARGET)" "$(DESTDIR)/bin"
 
 .PHONY: clean
 clean:
-	@$(eval NAME=$(shell util/ini.sh package.ini package.name))
-	rm -f $(NAME)
-	rm -rf util/ini.sh
+	rm -f $(TARGET)
+	# rm -rf util/ini.sh
