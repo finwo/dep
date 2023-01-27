@@ -59,11 +59,7 @@ function cmd_install_execute {
 function cmd_install_reset_generated {
   rm -rf "${CMD_INSTALL_PKG_DEST}/.__NAME"
   mkdir -p "${CMD_INSTALL_PKG_DEST}/.__NAME/include"
-  echo "CFLAGS+=-I${CMD_INSTALL_PKG_DEST}/.__NAME/include" > "${CMD_INSTALL_PKG_DEST}/.__NAME/config.mk"
-}
-
-function cmd_install_dep_parse_package {
-  echo PARSE PKG
+  echo "INCLUDES+=-I ${CMD_INSTALL_PKG_DEST}/.__NAME/include" > "${CMD_INSTALL_PKG_DEST}/.__NAME/config.mk"
 }
 
 function cmd_install_dep {
@@ -95,25 +91,49 @@ function cmd_install_dep {
       fi
 
       # Extract tarball
-      tar --extract --directory "${CMD_INSTALL_PKG_DEST}/${NAME}/" --strip-components 1 --file="${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball"
+      tar --extract --directory "${CMD_INSTALL_PKG_DEST}/${name}/" --strip-components 1 --file="${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball"
     fi
 
-    # Step 3: Execute fetch (for patches etc)
-  else
-    echo "ALREADY INSTALLED: ${name}"
+    # Handle fetching extra files
+    while read line; do
+      filename=${line%%=*}
+      filesource=${line#*=}
+
+      # Download the extra file into cache
+      mkdir -p "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/fetch"
+      if [ ! -f "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/fetch/${filename}" ]; then
+        curl --location --progress-bar "${filesource}" --create-dirs --output "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/fetch/${filename}"
+      fi
+
+    done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "fetch.")
+
+    # Copy the extra files into the target directory
+    tar --create --directory "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}" "fetch" | \
+      tar --extract --directory "${CMD_INSTALL_PKG_DEST}/${name}" --strip-components 1
   fi
 
-  # Step 4: Build exports
+  # Download package's dependencies
+  while read line; do
+    depname=${line%%=*}
+    deplink=${line#*=}
+    cmd_install_dep "$depname" "$deplink"
+  done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "dependencies.")
 
+  # TODO: handle patching/building here
 
+  # Fetch directory key for export absolute paths
+  DIRKEY="$(ini_foreach ini_output_value "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" package.dirkey)"
+  if [ -z "${DIRKEY}" ]; then
+    DIRKEY=__DIRNAME__
+  fi
 
-
-  echo "Name       : $name"
-  echo "Origin     : $origin"
-  echo "Destination: $destination"
+  # Build the package's exports
+  while read line; do
+    filetarget=${line%%=*}
+    filesource=${line#*=}
+    mkdir -p "$(dirname "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}")"
+    cat "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" | \
+      sed "s|${DIRKEY}|${CMD_INSTALL_PKG_DEST}/${name}|g" \
+      >> "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}"
+  done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "export.")
 }
-
-
-
-
-
