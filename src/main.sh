@@ -2,9 +2,6 @@ cmds=("")
 # #include "command/help/index.sh"
 # #include "command/install.sh"
 
-# Filled by preprocess
-NAME=__NAME
-
 function main {
   cmd=help
 
@@ -36,6 +33,6 @@ function main {
   cmd_$cmd
 }
 
-if [ $(basename $0) == "${NAME}" ]; then
+if [ $(basename $0) == "__NAME" ]; then
   main "$@"
 fi

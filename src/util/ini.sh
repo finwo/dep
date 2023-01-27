@@ -44,7 +44,7 @@ function ini_foreach {
     # Output searched or all
     if [[ -z "${3}" ]]; then
       $1 "$SECTION" "$NAME" "${VALUE}"
-    elif [[ "${SECTION}" == "${3}." ]] || [[ "${SECTION}${NAME}" == "${3}" ]]; then
+    elif [[ "${SECTION}" == "${3}" ]] || [[ "${SECTION}${NAME}" == "${3}" ]]; then
       $1 "$SECTION" "$NAME" "${VALUE}"
     fi
 
