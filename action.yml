@@ -1,0 +1,5 @@
+name: Setup DEP package manager
+description: Installs the DEP package manager into the runner
+
+runs:
+  main: scripts/install.sh
