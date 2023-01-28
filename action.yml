@@ -4,7 +4,7 @@ description: Installs the DEP package manager into the runner
 runs:
   using: "composite"
   steps:
-    - run: cp dist/dep /usr/local/bin/dep
+    - run: cp ${{ github.action_path }}/dist/dep /usr/local/bin/dep
       shell: bash
     - run: chmod +x /usr/local/bin/dep
       shell: bash
