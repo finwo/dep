@@ -76,7 +76,21 @@ function cmd_install_dep {
 
     # Fetch package.ini for the dependency
     mkdir -p "${CMD_INSTALL_PKG_DEST}/${name}"
-    curl --location --progress-bar "${origin}" --output "${CMD_INSTALL_PKG_DEST}/${name}/package.ini"
+    case "${origin##*.}" in
+      ini)
+        # Download the package.ini for the dependency
+        curl --location --progress-bar "${origin}" --output "${CMD_INSTALL_PKG_DEST}/${name}/package.ini"
+        ;;
+      *)
+        # Download the assumed tarball
+        mkdir -p "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}"
+        if [ ! -f "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball-pkg" ]; then
+          curl --location --progress-bar "${SRC}" --output "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball-pkg"
+        fi
+        # Extract tarball
+        tar --extract --directory "${CMD_INSTALL_PKG_DEST}/${name}/" --strip-components 1 --file="${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball-pkg"
+        ;;
+    esac
 
     # Fetch it's src (if present)
     SRC="$(ini_foreach ini_output_value "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" package.src)"
@@ -84,19 +98,19 @@ function cmd_install_dep {
 
       # Download
       mkdir -p "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}"
-      if [ ! -f "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball" ]; then
-        curl --location --progress-bar "${SRC}" --output "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball"
+      if [ ! -f "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball-src" ]; then
+        curl --location --progress-bar "${SRC}" --output "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball-src"
       fi
 
       # Verify checksum
       HASH="$(ini_foreach ini_output_value "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" package.src-sha256)"
-      if [ ! -z "${HASH}" ] && [ "${HASH}" != "$(sha256sum "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball" | awk '{print $1}')" ]; then
+      if [ ! -z "${HASH}" ] && [ "${HASH}" != "$(sha256sum "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball-src" | awk '{print $1}')" ]; then
         echo "The tarball for '${name}' failed it's checksum!" >&2
         exit 1
       fi
 
       # Extract tarball
-      tar --extract --directory "${CMD_INSTALL_PKG_DEST}/${name}/" --strip-components 1 --file="${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball"
+      tar --extract --directory "${CMD_INSTALL_PKG_DEST}/${name}/" --strip-components 1 --file="${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball-src"
     fi
 
     # Handle fetching extra files

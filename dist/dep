@@ -49,7 +49,7 @@ cmds[${#cmds[*]}]="help"
 #include "util/ini.sh"
 
 read -r -d '' help_topics[add] <<- EOF
-Usage: ${NAME} [global options] add <name> <url>
+Usage: dep [global options] add <name> <url>
 
 Description:
 
@@ -194,7 +194,7 @@ fi
 # None
 
 read -r -d '' help_topics[install] <<- EOF
-Usage: ${NAME} [global options] install
+Usage: dep [global options] install
 
 Description:
 
@@ -333,6 +333,64 @@ function cmd_install_dep {
     ln -fs "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" "${CMD_INSTALL_PKG_DEST}/.dep/${filetarget}"
   done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "export.")
 }
+
+read -r -d '' help_topics[repository] <<- EOF
+Usage: dep [global options] repository <command> <argument>
+
+Commands:
+
+  add <name> <manifest-url>  Add a repository to include during dependency adds
+  del <name>                 Delete a repository from your dependency adds
+EOF
+
+CMD_REPO_CMD=
+CMD_REPO_NAME=
+CMD_REPO_LOC=
+
+function arg_r {
+  arg_repository "$@"
+  return $?
+}
+function arg_repo {
+  arg_repository "$@"
+  return $?
+}
+function arg_repository {
+  CMD_REPO_CMD=$1
+  CMD_REPO_NAME=$2
+
+  case "${CMD_REPO_CMD}" in
+    add)
+      CMD_REPO_LOC=$3
+      ;;
+    del)
+      # Intentionally empty
+      ;;
+    *)
+      echo "Unknown command: ${CMD_REPO_CMD}" >&2
+      exit 1
+      ;;
+  esac
+
+  return 0
+}
+
+function cmd_r {
+  cmd_repository "$@"
+  return $?
+}
+function cmd_repo {
+  cmd_repository "$@"
+  return $?
+}
+function cmd_repository {
+  mkdir -p "${HOME}/.config/finwo/dep/repositories.d"
+  echo "${CMD_REPO_LOC}" >> "${HOME}/.config/finwo/dep/repositories.d/${CMD_REPO_NAME}.cnf"
+}
+
+cmds[${#cmds[*]}]="r"
+cmds[${#cmds[*]}]="repo"
+cmds[${#cmds[*]}]="repository"
 
 function main {
   cmd=help
