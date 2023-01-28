@@ -5,4 +5,6 @@ runs:
   using: "composite"
   steps:
     - run: curl --location https://raw.githubusercontent.com/finwo/dep/master/dist/dep --output /usr/local/bin/dep
+      shell: bash
     - run: chmod +x /usr/local/bin/dep
+      shell: bash
