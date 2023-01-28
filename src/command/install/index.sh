@@ -27,6 +27,7 @@ function cmd_install {
 
   ini_foreach cmd_install_parse_ini_main "${PACKAGE_PATH}"
   cmd_install_execute
+  echo "Done"
 }
 
 cmds[${#cmds[*]}]="i"
