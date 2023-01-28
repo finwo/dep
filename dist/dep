@@ -278,9 +278,8 @@ function cmd_install_dep {
     curl --location --progress-bar "${origin}" --output "${CMD_INSTALL_PKG_DEST}/${name}/package.ini"
 
     # Fetch it's src (if present)
-    if [ ! -z "$(ini_foreach ini_output_value "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" package.src)" ]; then
-      SRC="$(ini_foreach ini_output_value "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" package.src)"
-      HASH="$(ini_foreach ini_output_value "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" package.src-sha256)"
+    SRC="$(ini_foreach ini_output_value "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" package.src)"
+    if [ ! -z "${SRC}" ]; then
 
       # Download
       mkdir -p "${CMD_INSTALL_PKG_DEST}/.dep/cache/${name}"
@@ -289,7 +288,8 @@ function cmd_install_dep {
       fi
 
       # Verify checksum
-      if [ "${HASH}" != "$(sha256sum "${CMD_INSTALL_PKG_DEST}/.dep/cache/${name}/tarball" | awk '{print $1}')" ]; then
+      HASH="$(ini_foreach ini_output_value "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" package.src-sha256)"
+      if [ ! -z "${HASH}" ] && [ "${HASH}" != "$(sha256sum "${CMD_INSTALL_PKG_DEST}/.dep/cache/${name}/tarball" | awk '{print $1}')" ]; then
         echo "The tarball for '${name}' failed it's checksum!" >&2
         exit 1
       fi
