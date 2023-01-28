@@ -45,12 +45,12 @@ function cmd_repo {
 function cmd_repository {
   case "${CMD_REPO_CMD}" in
     add)
-      mkdir -p "${HOME}/.config/finwo/dep/repositories.d"
-      echo "${CMD_REPO_LOC}" >> "${HOME}/.config/finwo/dep/repositories.d/${CMD_REPO_NAME}.cnf"
+      mkdir -p "${HOME}/.config/finwo/__NAME/repositories.d"
+      echo "${CMD_REPO_LOC}" >> "${HOME}/.config/finwo/__NAME/repositories.d/${CMD_REPO_NAME}.cnf"
       ;;
     del)
-      mkdir -p "${HOME}/.config/finwo/dep/repositories.d"
-      rm -f "${HOME}/.config/finwo/dep/repositories.d/${CMD_REPO_NAME}.cnf"
+      mkdir -p "${HOME}/.config/finwo/__NAME/repositories.d"
+      rm -f "${HOME}/.config/finwo/__NAME/repositories.d/${CMD_REPO_NAME}.cnf"
       ;;
     *)
       echo "Unknown command: ${CMD_REPO_CMD}" >&2
