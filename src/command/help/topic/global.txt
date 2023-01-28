@@ -1,12 +1,14 @@
-
 Usage: ${NAME} [global options] <command> [options] [-- ...args]
 
 Global options:
   n/a
 
 Commands:
+  a(dd)           Add a new dependency to the project
   i(nstall)       Install all the project's dependencies
   h(elp) [topic]  Show this help or the top-level info about a command
 
 Help topics:
   global          This help text
+  add             More detailed explanation on the add command
+  install         More detailed explanation on the install command

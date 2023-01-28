@@ -1,19 +1,11 @@
-SRC=$(wildcard src/*.sh)
-
-# Idea:
-# include lib/.dep/libraries.mk
+SRC:=
+SRC+=$(wildcard src/*.sh)
+SRC+=$(wildcard src/*/*.sh)
+SRC+=$(wildcard src/*/*/*.sh)
 
 PREPROCESS=preprocess --substitute
 DESTDIR?=/usr/local
 TARGET=dep
-
-default: $(TARGET)
-
-# util/ini.sh: src/util/ini.sh src/util/shopt.sh
-# 	mkdir -p util
-# 	echo '#!/usr/bin/env bash' > $@
-# 	$(PREPROCESS) -I src -v src/util/ini.sh | tee -a $@ > /dev/null
-# 	chmod +x $@
 
 $(TARGET): $(SRC)
 	echo '#!/usr/bin/env bash' > "$(TARGET)"
@@ -27,4 +19,3 @@ install: $(TARGET)
 .PHONY: clean
 clean:
 	rm -f $(TARGET)
-	# rm -rf util/ini.sh

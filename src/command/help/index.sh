@@ -10,7 +10,9 @@ function arg_h {
   return $?
 }
 function arg_help {
-  HELP_TOPIC=$1
+  if [[ $# -gt 0 ]]; then
+    HELP_TOPIC=$1
+  fi
   shift
 }
 
@@ -24,7 +26,7 @@ function cmd_help {
     exit 1
   fi
 
-  echo "${help_topics[$HELP_TOPIC]}"
+  echo -e "\n${help_topics[$HELP_TOPIC]}\n"
 }
 
 cmds[${#cmds[*]}]="h"
