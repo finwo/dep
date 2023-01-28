@@ -1,0 +1,377 @@
+#!/usr/bin/env bash
+cmds=("")
+declare -A help_topics
+
+read -r -d '' help_topics[global] <<- EOF
+Usage: ${NAME} [global options] <command> [options] [-- ...args]
+
+Global options:
+  n/a
+
+Commands:
+  a(dd)           Add a new dependency to the project
+  i(nstall)       Install all the project's dependencies
+  h(elp) [topic]  Show this help or the top-level info about a command
+
+Help topics:
+  global          This help text
+  add             More detailed explanation on the add command
+  install         More detailed explanation on the install command
+EOF
+
+HELP_TOPIC=global
+function arg_h {
+  arg_help "$@"
+  return $?
+}
+function arg_help {
+  if [[ $# -gt 0 ]]; then
+    HELP_TOPIC=$1
+  fi
+  shift
+}
+
+function cmd_h {
+  cmd_help "$@"
+  return $?
+}
+function cmd_help {
+  if [ -z "${help_topics[$HELP_TOPIC]}" ]; then
+    echo "Unknown topic: $HELP_TOPIC" >&2
+    exit 1
+  fi
+
+  echo -e "\n${help_topics[$HELP_TOPIC]}\n"
+}
+
+cmds[${#cmds[*]}]="h"
+cmds[${#cmds[*]}]="help"
+#include "util/ini.sh"
+
+read -r -d '' help_topics[add] <<- EOF
+Usage: ${NAME} [global options] add <name> <url>
+
+Description:
+
+  The add command will add a dependency to your package.ini and trigger the
+  install command to do the actual install.
+
+Arguments:
+
+  name  The name of the dependency that will be installed. This will be used as
+        the target directory within lib as well.
+
+  url   The url pointing to the package.ini that describes the dependency.
+EOF
+
+CMD_ADD_PKG=
+CMD_ADD_SRC=
+
+function arg_a {
+  arg_add "$@"
+  return $?
+}
+function arg_add {
+  if [ $# != 2 ]; then
+    echo "Add command requires 2 arguments" >&2
+    exit 1
+  fi
+
+  CMD_ADD_PKG="$1"
+  CMD_ADD_SRC="$2"
+
+  return 0
+}
+
+function cmd_a {
+  cmd_add "$@"
+  return $?
+}
+function cmd_add {
+  OLD_PKG=$(ini_foreach ini_output_full "package.ini")
+  (echo "dependencies.${CMD_ADD_PKG}=${CMD_ADD_SRC}" ; echo -e "${OLD_PKG}") | ini_write "package.ini"
+}
+
+cmds[${#cmds[*]}]="a"
+cmds[${#cmds[*]}]="add"
+
+
+# Required for the whitespace trimming
+shopt -s extglob
+
+# None
+
+# Arguments:
+#   $0 <fn_keyHandler> <str_filename> [section[.key]]
+function ini_foreach {
+
+  # No file = no data
+  inifile="${2}"
+  if [[ ! -f "$inifile" ]]; then
+    exit 1
+  fi
+
+  # Process the file line-by-line
+  SECTION=
+  while read line; do
+
+    # Remove surrounding whitespace
+    line=${line##*( )} # From the beginning
+    line=${line%%*( )} # From the end
+
+    # Remove comments and empty lines
+    if [[ "${line:0:1}" == '#' ]] || [[ "${line:0:1}" == ';' ]] || [[ "${#line}" == 0 ]]; then
+      continue
+    fi
+
+    # Handle section markers
+    if [[ "${line:0:1}" == "[" ]]; then
+      SECTION=$(echo $line | sed -e 's/\[\(.*\)\]/\1/')
+      SECTION=${SECTION##*( )}
+      SECTION=${SECTION%%*( )}
+      SECTION="${SECTION}."
+      continue
+    fi
+
+    # Output found variable
+    NAME=${line%%=*}
+    NAME=${NAME%%*( )}
+    VALUE=${line#*=}
+    VALUE=${VALUE##*( )}
+
+    # Output searched or all
+    if [[ -z "${3}" ]]; then
+      $1 "$SECTION" "$NAME" "${VALUE}"
+    elif [[ "${SECTION}" == "${3}" ]] || [[ "${SECTION}${NAME}" == "${3}" ]]; then
+      $1 "$SECTION" "$NAME" "${VALUE}"
+    fi
+
+  done < "${inifile}"
+}
+
+function ini_write {
+  PREVIOUSSECTION=
+  echo -en "" > "$1"
+  while read line; do
+    KEYFULL=${line%%=*}
+    VALUE=${line#*=}
+    SECTION=${KEYFULL%%.*}
+    KEY=${KEYFULL#*.}
+    if [[ "${SECTION}" != "${PREVIOUSSECTION}" ]]; then
+      echo "[${SECTION}]" >> "$1"
+      PREVIOUSSECTION="${SECTION}"
+    fi
+    echo "${KEY}=${VALUE}" >> "$1"
+  done < <(sort --unique)
+}
+
+function ini_output_full {
+  echo "$1$2=$3"
+}
+function ini_output_section {
+  echo "$2=$3"
+}
+function ini_output_value {
+  echo "$3"
+}
+
+# Allow this file to be called stand-alone
+# ini.sh <filename> [section[.key]] [sectionmode]
+if [ $(basename $0) == "ini.sh" ]; then
+  fullMode=full
+  sectionMode=value
+  if [[ ! -z "${3}" ]]; then
+    fullMode=${3}
+    sectionMode=${3}
+  fi
+  if [[ -z "${2}" ]]; then
+    ini_foreach ini_output_${fullMode} "$@"
+  else
+    ini_foreach ini_output_${sectionMode} "$@"
+  fi
+fi
+
+# None
+
+read -r -d '' help_topics[install] <<- EOF
+Usage: ${NAME} [global options] install
+
+Description:
+
+  The install command will iterate over all dependencies listed in your
+  project's package.ini and install them 1-by-1, installing the dependency's
+  dependencies as well.
+EOF
+
+function arg_i {
+  arg_install "$@"
+  return $?
+}
+function arg_install {
+  return 0
+}
+
+function cmd_i {
+  cmd_install "$@"
+  return $?
+}
+function cmd_install {
+
+  # Sanity check
+  PACKAGE_PATH="$(pwd)/package.ini"
+  if [ ! -f "${PACKAGE_PATH}" ]; then
+    echo "No package.ini in the working directory!" >&2
+    exit 1
+  fi
+
+  ini_foreach cmd_install_parse_ini_main "${PACKAGE_PATH}"
+  cmd_install_execute
+}
+
+cmds[${#cmds[*]}]="i"
+cmds[${#cmds[*]}]="install"
+
+CMD_INSTALL_PKG_NAME=
+CMD_INSTALL_PKG_DEST="$(pwd)/lib"
+declare -A CMD_INSTALL_DEPS
+function cmd_install_parse_ini_main {
+  case "$1" in
+    package.)
+      case "$2" in
+        name)
+          CMD_INSTALL_PKG_NAME="$3"
+          ;;
+        deps)
+          CMD_INSTALL_PKG_DEST="$(pwd)/$3"
+          ;;
+      esac
+      ;;
+    dependencies.)
+      CMD_INSTALL_DEPS["$2"]="$3"
+      ;;
+  esac
+}
+
+function cmd_install_execute {
+  cmd_install_reset_generated
+  for key in "${!CMD_INSTALL_DEPS[@]}"; do
+    cmd_install_dep "$key" "${CMD_INSTALL_DEPS[$key]}"
+  done
+}
+
+function cmd_install_reset_generated {
+  rm -rf "${CMD_INSTALL_PKG_DEST}/.dep"
+  mkdir -p "${CMD_INSTALL_PKG_DEST}/.dep/include"
+  echo "INCLUDES+=-I ${CMD_INSTALL_PKG_DEST}/.dep/include" > "${CMD_INSTALL_PKG_DEST}/.dep/config.mk"
+}
+
+function cmd_install_dep {
+  name=$1
+  origin=$2
+
+  # Full install if missing
+  if [ ! -d "${CMD_INSTALL_PKG_DEST}/${name}" ]; then
+
+    # Fetch package.ini for the dependency
+    mkdir -p "${CMD_INSTALL_PKG_DEST}/${name}"
+    curl --location --progress-bar "${origin}" --output "${CMD_INSTALL_PKG_DEST}/${name}/package.ini"
+
+    # Fetch it's src (if present)
+    if [ ! -z "$(ini_foreach ini_output_value "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" package.src)" ]; then
+      SRC="$(ini_foreach ini_output_value "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" package.src)"
+      HASH="$(ini_foreach ini_output_value "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" package.src-sha256)"
+
+      # Download
+      mkdir -p "${CMD_INSTALL_PKG_DEST}/.dep/cache/${name}"
+      if [ ! -f "${CMD_INSTALL_PKG_DEST}/.dep/cache/${name}/tarball" ]; then
+        curl --location --progress-bar "${SRC}" --output "${CMD_INSTALL_PKG_DEST}/.dep/cache/${name}/tarball"
+      fi
+
+      # Verify checksum
+      if [ "${HASH}" != "$(sha256sum "${CMD_INSTALL_PKG_DEST}/.dep/cache/${name}/tarball" | awk '{print $1}')" ]; then
+        echo "The tarball for '${name}' failed it's checksum!" >&2
+        exit 1
+      fi
+
+      # Extract tarball
+      tar --extract --directory "${CMD_INSTALL_PKG_DEST}/${name}/" --strip-components 1 --file="${CMD_INSTALL_PKG_DEST}/.dep/cache/${name}/tarball"
+    fi
+
+    # Handle fetching extra files
+    mkdir -p "${CMD_INSTALL_PKG_DEST}/.dep/cache/${name}/fetch"
+    while read line; do
+      filename=${line%%=*}
+      filesource=${line#*=}
+
+      # Download the extra file into cache
+      if [ ! -f "${CMD_INSTALL_PKG_DEST}/.dep/cache/${name}/fetch/${filename}" ]; then
+        curl --location --progress-bar "${filesource}" --create-dirs --output "${CMD_INSTALL_PKG_DEST}/.dep/cache/${name}/fetch/${filename}"
+      fi
+
+    done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "fetch.")
+
+    # Copy the extra files into the target directory
+    tar --create --directory "${CMD_INSTALL_PKG_DEST}/.dep/cache/${name}" "fetch" | \
+      tar --extract --directory "${CMD_INSTALL_PKG_DEST}/${name}" --strip-components 1
+  fi
+
+  # Download package's dependencies
+  while read line; do
+    depname=${line%%=*}
+    deplink=${line#*=}
+    cmd_install_dep "$depname" "$deplink"
+  done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "dependencies.")
+
+  # TODO: handle patching/building here
+
+  # Fetch directory key for export absolute paths
+  DIRKEY="$(ini_foreach ini_output_value "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" package.dirkey)"
+  if [ -z "${DIRKEY}" ]; then
+    DIRKEY=__DIRNAME__
+  fi
+
+  # Build the package's exports
+  while read line; do
+    filetarget=${line%%=*}
+    filesource=${line#*=}
+    mkdir -p "$(dirname "${CMD_INSTALL_PKG_DEST}/.dep/${filetarget}")"
+    cat "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" | \
+      sed "s|${DIRKEY}|${CMD_INSTALL_PKG_DEST}/${name}|g" \
+      >> "${CMD_INSTALL_PKG_DEST}/.dep/${filetarget}"
+  done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "export.")
+}
+
+function main {
+  cmd=help
+
+  while [ "$#" -gt 0 ]; do
+
+    # If argument is a command, pass parsing on to it & stop main parser
+    if [[ " ${cmds[*]} " =~ " $1 " ]]; then
+      cmd=$1
+      shift
+      arg_$cmd "$@"
+      break
+    fi
+
+    # Main parser
+    case "$1" in
+      --)
+        shift
+        break 2
+        ;;
+      *)
+        echo "Unknown argument: $1" >&2
+        exit 1
+        ;;
+    esac
+    shift
+
+  done
+
+  cmd_$cmd
+}
+
+if [ $(basename $0) == "dep" ]; then
+  main "$@"
+fi
