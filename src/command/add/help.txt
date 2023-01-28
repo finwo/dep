@@ -1,4 +1,4 @@
-Usage: ${NAME} [global options] add <name> <url>
+Usage: __NAME [global options] add <name> <url>
 
 Description:
 
