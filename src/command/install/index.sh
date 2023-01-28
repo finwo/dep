@@ -85,7 +85,7 @@ function cmd_install_dep {
         # Download the assumed tarball
         mkdir -p "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}"
         if [ ! -f "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball-pkg" ]; then
-          curl --location --progress-bar "${SRC}" --output "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball-pkg"
+          curl --location --progress-bar "${origin}" --output "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball-pkg"
         fi
         # Extract tarball
         tar --extract --directory "${CMD_INSTALL_PKG_DEST}/${name}/" --strip-components 1 --file="${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball-pkg"
