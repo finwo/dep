@@ -3,7 +3,7 @@ cmds=("")
 declare -A help_topics
 
 read -r -d '' help_topics[global] <<- EOF
-Usage: ${NAME} [global options] <command> [options] [-- ...args]
+Usage: dep [global options] <command> [options] [-- ...args]
 
 Global options:
   n/a

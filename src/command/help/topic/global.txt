@@ -1,4 +1,4 @@
-Usage: ${NAME} [global options] <command> [options] [-- ...args]
+Usage: __NAME [global options] <command> [options] [-- ...args]
 
 Global options:
   n/a

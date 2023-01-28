@@ -17,6 +17,10 @@ dist/$(TARGET): $(SRC)
 install: dist/$(TARGET)
 	install "dist/$(TARGET)" "$(DESTDIR)/bin"
 
+README.md: README.md.html
+	$(PREPROCESS) -D __NAME=$(TARGET) $< > "$@"
+
 .PHONY: clean
 clean:
-	rm -f $(TARGET)
+	rm -rf dist
+	rm -f README.md
