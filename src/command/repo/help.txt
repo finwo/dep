@@ -1,0 +1,6 @@
+Usage: __NAME [global options] repository <command> <argument>
+
+Commands:
+
+  add <name> <manifest-url>  Add a repository to include during dependency adds
+  del <name>                 Delete a repository from your dependency adds

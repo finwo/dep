@@ -2,6 +2,7 @@ cmds=("")
 # #include "command/help/index.sh"
 # #include "command/add/index.sh"
 # #include "command/install/index.sh"
+# #include "command/repo/index.sh"
 
 function main {
   cmd=help

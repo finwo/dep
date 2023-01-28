@@ -7,8 +7,10 @@ Commands:
   a(dd)           Add a new dependency to the project
   i(nstall)       Install all the project's dependencies
   h(elp) [topic]  Show this help or the top-level info about a command
+  r(epo(sitory))  Repository management
 
 Help topics:
   global          This help text
   add             More detailed explanation on the add command
   install         More detailed explanation on the install command
+  repository      More detailed explanation on the repository command
