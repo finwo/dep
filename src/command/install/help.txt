@@ -1,4 +1,4 @@
-Usage: ${NAME} [global options] install
+Usage: __NAME [global options] install
 
 Description:
 
