@@ -49,7 +49,22 @@ function ini_foreach {
     fi
 
   done < "${inifile}"
+}
 
+function ini_write {
+  PREVIOUSSECTION=
+  echo -en "" > "$1"
+  while read line; do
+    KEYFULL=${line%%=*}
+    VALUE=${line#*=}
+    SECTION=${KEYFULL%%.*}
+    KEY=${KEYFULL#*.}
+    if [[ "${SECTION}" != "${PREVIOUSSECTION}" ]]; then
+      echo "[${SECTION}]" >> "$1"
+      PREVIOUSSECTION="${SECTION}"
+    fi
+    echo "${KEY}=${VALUE}" >> "$1"
+  done < <(sort --unique)
 }
 
 function ini_output_full {

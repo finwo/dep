@@ -1,5 +1,9 @@
 # #include "util/ini.sh"
 
+read -r -d '' help_topics[install] <<- EOF
+# #include "help.txt"
+EOF
+
 function arg_i {
   arg_install "$@"
   return $?
@@ -95,12 +99,12 @@ function cmd_install_dep {
     fi
 
     # Handle fetching extra files
+    mkdir -p "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/fetch"
     while read line; do
       filename=${line%%=*}
       filesource=${line#*=}
 
       # Download the extra file into cache
-      mkdir -p "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/fetch"
       if [ ! -f "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/fetch/${filename}" ]; then
         curl --location --progress-bar "${filesource}" --create-dirs --output "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/fetch/${filename}"
       fi

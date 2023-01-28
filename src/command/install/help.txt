@@ -1,0 +1,7 @@
+Usage: ${NAME} [global options] install
+
+Description:
+
+  The install command will iterate over all dependencies listed in your
+  project's package.ini and install them 1-by-1, installing the dependency's
+  dependencies as well.
