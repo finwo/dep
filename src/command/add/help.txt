@@ -1,0 +1,13 @@
+Usage: ${NAME} [global options] add <name> <url>
+
+Description:
+
+  The add command will add a dependency to your package.ini and trigger the
+  install command to do the actual install.
+
+Arguments:
+
+  name  The name of the dependency that will be installed. This will be used as
+        the target directory within lib as well.
+
+  url   The url pointing to the package.ini that describes the dependency.
