@@ -125,20 +125,11 @@ function cmd_install_dep {
 
   # TODO: handle patching/building here
 
-  # # Fetch directory key for export absolute paths
-  # DIRKEY="$(ini_foreach ini_output_value "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" package.dirkey)"
-  # if [ -z "${DIRKEY}" ]; then
-  #   DIRKEY=__DIRNAME__
-  # fi
-
   # Build the package's exports
   while read line; do
     filetarget=${line%%=*}
     filesource=${line#*=}
     mkdir -p "$(dirname "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}")"
-    ln -s "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}"
-    # cat "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" | \
-    #   sed "s|${DIRKEY}|${CMD_INSTALL_PKG_DEST}/${name}|g" \
-    #   >> "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}"
+    ln -fs "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}"
   done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "export.")
 }
