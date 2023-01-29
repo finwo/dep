@@ -72,7 +72,9 @@ function cmd_install_dep {
   origin=$2
 
   # Full install if missing
+  ISNEW=
   if [ ! -d "${CMD_INSTALL_PKG_DEST}/${name}" ]; then
+    ISNEW="yes"
 
     # Fetch package.ini for the dependency
     mkdir -p "${CMD_INSTALL_PKG_DEST}/${name}"
@@ -138,7 +140,13 @@ function cmd_install_dep {
     cmd_install_dep "$depname" "$deplink"
   done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "dependencies.")
 
-  # TODO: handle patching/building here
+  # Handle any build-steps defined in the package.ini
+  if [ ! -z "$ISNEW" ]; then
+    while read line; do
+      buildcmd=${line#*=}
+      bash -c "cd ${CMD_INSTALL_PKG_DEST}/${name} ; ${buildcmd}"
+    done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "build." | sort --human-numeric-sort)
+  fi
 
   # Build the package's exports
   while read line; do
