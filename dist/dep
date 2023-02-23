@@ -298,11 +298,11 @@ function cmd_install_reset_generated {
 }
 
 function cmd_install_dep {
-  name=$1
-  origin=$2
+  local name=$1
+  local origin=$2
 
   # Full install if missing
-  ISNEW=
+  local ISNEW=
   if [ ! -d "${CMD_INSTALL_PKG_DEST}/${name}" ]; then
     ISNEW="yes"
 
