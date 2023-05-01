@@ -16,15 +16,22 @@ Installation
 To install __NAME, simply download [dist/dep](dist/dep) and place it in your
 `/usr/local/bin` directory or anywhere else that's included in your `$PATH`.
 
-If you want to build it from source, clone the repository and run the following
-commands:
+Building
+--------
+
+Building this dependency manager requires
+[preprocess](https://pypi.org/project/preprocess/) which you can install by
+running `pip install preprocess`.
+
+After fetching the preprocess dependency, you can build & install dep by running
+the following commands:
 
 ```sh
 make
 sudo make install
 ```
 
-To install the binary in a location other that `/usr/local/bin`, pass the
+To install the binary in a location other than `/usr/local/bin`, pass the
 `DESTDIR` definition to the `make install` command (default: `/usr/local`).
 
 License
