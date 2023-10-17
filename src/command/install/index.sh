@@ -79,6 +79,8 @@ function cmd_install_dep {
 
     # Fetch package.ini for the dependency
     mkdir -p "${CMD_INSTALL_PKG_DEST}/${name}"
+    echo "name  : ${name}"
+    echo "origin: ${origin}"
     case "${origin##*.}" in
       ini)
         # Download the package.ini for the dependency
