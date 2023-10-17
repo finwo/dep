@@ -21,4 +21,4 @@ runs:
 
     - if: runner.os == 'Windows'
       shell: pwsh
-      run: set
+      run: gci env:*
