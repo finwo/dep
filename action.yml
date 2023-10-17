@@ -2,5 +2,15 @@ name: Setup DEP package manager
 description: Installs the DEP package manager into the runner
 
 runs:
-  using: "node16"
-  main: dist/action.js
+  using: "composite"
+  steps:
+
+    - if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        echo "dist" >> $GITHUB_PATH
+
+    - if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        echo "dist" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
