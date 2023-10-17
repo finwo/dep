@@ -1242,8 +1242,8 @@ var require_util = __commonJS({
       if (body == null) {
         return 0;
       } else if (isStream(body)) {
-        const state2 = body._readableState;
-        return state2 && state2.objectMode === false && state2.ended === true && Number.isFinite(state2.length) ? state2.length : null;
+        const state = body._readableState;
+        return state && state.objectMode === false && state.ended === true && Number.isFinite(state.length) ? state.length : null;
       } else if (isBlobLike(body)) {
         return body.size != null ? body.size : null;
       } else if (isBuffer(body)) {
@@ -1255,8 +1255,8 @@ var require_util = __commonJS({
       return !stream2 || !!(stream2.destroyed || stream2[kDestroyed]);
     }
     function isReadableAborted(stream2) {
-      const state2 = stream2 && stream2._readableState;
-      return isDestroyed(stream2) && state2 && !state2.endEmitted;
+      const state = stream2 && stream2._readableState;
+      return isDestroyed(stream2) && state && !state.endEmitted;
     }
     function destroy(stream2, err) {
       if (!isStream(stream2) || isDestroyed(stream2)) {
@@ -2136,7 +2136,7 @@ var require_parseParams = __commonJS({
     }
     function parseParams(str) {
       const res = [];
-      let state2 = "key";
+      let state = "key";
       let charset = "";
       let inquote = false;
       let escaping = false;
@@ -2155,7 +2155,7 @@ var require_parseParams = __commonJS({
           if (!escaping) {
             if (inquote) {
               inquote = false;
-              state2 = "key";
+              state = "key";
             } else {
               inquote = true;
             }
@@ -2168,26 +2168,26 @@ var require_parseParams = __commonJS({
             tmp += "\\";
           }
           escaping = false;
-          if ((state2 === "charset" || state2 === "lang") && char === "'") {
-            if (state2 === "charset") {
-              state2 = "lang";
+          if ((state === "charset" || state === "lang") && char === "'") {
+            if (state === "charset") {
+              state = "lang";
               charset = tmp.substring(1);
             } else {
-              state2 = "value";
+              state = "value";
             }
             tmp = "";
             continue;
-          } else if (state2 === "key" && (char === "*" || char === "=") && res.length) {
+          } else if (state === "key" && (char === "*" || char === "=") && res.length) {
             if (char === "*") {
-              state2 = "charset";
+              state = "charset";
             } else {
-              state2 = "value";
+              state = "value";
             }
             res[p] = [tmp, void 0];
             tmp = "";
             continue;
           } else if (!inquote && char === ";") {
-            state2 = "key";
+            state = "key";
             if (charset) {
               if (tmp.length) {
                 tmp = decodeText(
@@ -4978,8 +4978,8 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         }
       }
     }
-    function throwIfAborted(state2) {
-      if (state2.aborted) {
+    function throwIfAborted(state) {
+      if (state.aborted) {
         throw new DOMException2("The operation was aborted.", "AbortError");
       }
     }
@@ -8862,11 +8862,11 @@ var require_readable = __commonJS({
       if (consume2.body === null) {
         return;
       }
-      const { _readableState: state2 } = consume2.stream;
-      for (const chunk of state2.buffer) {
+      const { _readableState: state } = consume2.stream;
+      for (const chunk of state.buffer) {
         consumePush(consume2, chunk);
       }
-      if (state2.endEmitted) {
+      if (state.endEmitted) {
         consumeEnd(this[kConsume]);
       } else {
         consume2.stream.on("end", function() {
@@ -11328,17 +11328,17 @@ var require_response = __commonJS({
         aborted: reason && reason.name === "AbortError"
       });
     }
-    function makeFilteredResponse(response, state2) {
-      state2 = {
+    function makeFilteredResponse(response, state) {
+      state = {
         internalResponse: response,
-        ...state2
+        ...state
       };
       return new Proxy(response, {
         get(target, p) {
-          return p in state2 ? state2[p] : target[p];
+          return p in state ? state[p] : target[p];
         },
         set(target, p, value) {
-          assert(!(p in state2));
+          assert(!(p in state));
           target[p] = value;
           return true;
         }
@@ -17863,13 +17863,9 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
 
 // src/action.js
 var core = __toESM(require_core());
-var state = {
-  get isPost() {
-    return !!core.getState("isPost");
-  }
-};
 (async () => {
-  console.log(state, state.isPost);
+  console.log("env");
+  console.log(process.env);
 })();
 /*! Bundled license information:
 
