@@ -17,6 +17,9 @@ function ini_foreach {
   SECTION=
   while read line; do
 
+    # Fix newlines
+    line=$(echo $line | dos2unix)
+
     # Remove surrounding whitespace
     line=${line##*( )} # From the beginning
     line=${line%%*( )} # From the end
