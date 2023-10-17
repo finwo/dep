@@ -18,7 +18,7 @@ function ini_foreach {
   while read line; do
 
     # Fix newlines
-    line=$(echo $line | dos2unix)
+    line=$(echo $line | tr -d '\015')
 
     # Remove surrounding whitespace
     line=${line##*( )} # From the beginning
