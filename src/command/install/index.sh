@@ -82,12 +82,14 @@ function cmd_install_dep {
     case "${origin##*.}" in
       ini)
         # Download the package.ini for the dependency
+        echo "pre-ini download"
         curl --location --progress-bar "${origin}" --output "${CMD_INSTALL_PKG_DEST}/${name}/package.ini"
         ;;
       *)
         # Download the assumed tarball
         mkdir -p "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}"
         if [ ! -f "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball-pkg" ]; then
+          echo "pre-tarball download A"
           curl --location --progress-bar "${origin}" --output "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball-pkg"
         fi
         # Extract tarball
@@ -102,6 +104,7 @@ function cmd_install_dep {
       # Download
       mkdir -p "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}"
       if [ ! -f "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball-src" ]; then
+        echo "pre-tarball download B"
         curl --location --progress-bar "${SRC}" --output "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/tarball-src"
       fi
 
@@ -124,6 +127,7 @@ function cmd_install_dep {
 
       # Download the extra file into cache
       if [ ! -f "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/fetch/${filename}" ]; then
+        echo "pre-fetch"
         curl --location --progress-bar "${filesource}" --create-dirs --output "${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${name}/fetch/${filename}"
       fi
 
