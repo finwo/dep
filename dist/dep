@@ -266,7 +266,7 @@ cmds[${#cmds[*]}]="i"
 cmds[${#cmds[*]}]="install"
 
 CMD_INSTALL_PKG_NAME=
-CMD_INSTALL_PKG_DEST="$(pwd)/lib"
+CMD_INSTALL_PKG_DEST="lib"
 declare -A CMD_INSTALL_DEPS
 function cmd_install_parse_ini_main {
   case "$1" in
@@ -276,7 +276,7 @@ function cmd_install_parse_ini_main {
           CMD_INSTALL_PKG_NAME="$3"
           ;;
         deps)
-          CMD_INSTALL_PKG_DEST="$(pwd)/$3"
+          CMD_INSTALL_PKG_DEST="$3"
           ;;
       esac
       ;;
