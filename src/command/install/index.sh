@@ -156,8 +156,6 @@ function cmd_install_dep {
       filetarget=${line%%=*}
       filesource=${line#*=}
       mkdir -p "$(dirname "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}")"
-      echo 'dst' ${CMD_INSTALL_PKG_DEST}
-      find ${CMD_INSTALL_PKG_DEST}
       case "${filetarget}" in
         config.mk)
           cat "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" | sed "s|__DIRNAME|${CMD_INSTALL_PKG_DEST}/${name}|g" >> "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}"
