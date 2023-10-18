@@ -225,39 +225,6 @@ function cmd_add {
 
 cmds[${#cmds[*]}]="a"
 cmds[${#cmds[*]}]="add"
-# Origin: https://stackoverflow.com/a/25394801
-
-windows() { [[ -n "$WINDIR" ]]; }
-
-# Cross-platform symlink function. With one parameter, it will check
-# whether the parameter is a symlink. With two parameters, it will create
-# a symlink to a file or directory, with syntax: link $linkname $target
-lnk() {
-    if [[ -z "$2" ]]; then
-        # Link-checking mode.
-        if windows; then
-            fsutil reparsepoint query "$1" > /dev/null
-        else
-            [[ -h "$1" ]]
-        fi
-    else
-        # Link-creation mode.
-        if windows; then
-            # Windows needs to be told if it's a directory or not. Infer that.
-            # Also: note that we convert `/` to `\`. In this case it's necessary.
-            if [[ -d "$2" ]]; then
-                echo 'cmd <<< "mklink /D \"$1\" \"${2//\//\\}\"" > /dev/null'
-                cmd <<< "mklink /D \"$1\" \"${2//\//\\}\"" > /dev/null
-            else
-                echo 'cmd <<< "mklink \"$1\" \"${2//\//\\}\"" > /dev/null'
-                cmd <<< "mklink \"$1\" \"${2//\//\\}\"" > /dev/null
-            fi
-        else
-            echo ln -fs "$2" "$1"
-            ln -fs "$2" "$1"
-        fi
-    fi
-}
 
 read -r -d '' help_topics[install] <<- EOF
 Usage: dep [global options] install
@@ -428,7 +395,8 @@ function cmd_install_dep {
           cat "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" | sed "s|__DIRNAME|${CMD_INSTALL_PKG_DEST}/${name}|g" >> "${CMD_INSTALL_PKG_DEST}/.dep/${filetarget}"
           ;;
         *)
-          lnk "${CMD_INSTALL_PKG_DEST}/.dep/${filetarget}" "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}"
+          # ls -sf "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" "${CMD_INSTALL_PKG_DEST}/.dep/${filetarget}"
+          cp "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" "${CMD_INSTALL_PKG_DEST}/.dep/${filetarget}"
           ;;
       esac
     done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "export.")

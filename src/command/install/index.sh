@@ -1,5 +1,4 @@
 # #include "util/ini.sh"
-# #include "util/link.sh"
 
 read -r -d '' help_topics[install] <<- EOF
 # #include "help.txt"
@@ -164,7 +163,8 @@ function cmd_install_dep {
           cat "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" | sed "s|__DIRNAME|${CMD_INSTALL_PKG_DEST}/${name}|g" >> "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}"
           ;;
         *)
-          lnk "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}" "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}"
+          # ls -sf "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}"
+          cp "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}"
           ;;
       esac
     done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "export.")
