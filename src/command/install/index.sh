@@ -1,4 +1,5 @@
 # #include "util/ini.sh"
+# #include "util/link.sh"
 
 read -r -d '' help_topics[install] <<- EOF
 # #include "help.txt"
@@ -34,7 +35,7 @@ cmds[${#cmds[*]}]="i"
 cmds[${#cmds[*]}]="install"
 
 CMD_INSTALL_PKG_NAME=
-CMD_INSTALL_PKG_DEST="lib"
+CMD_INSTALL_PKG_DEST="$(pwd)/lib"
 declare -A CMD_INSTALL_DEPS
 function cmd_install_parse_ini_main {
   case "$1" in
@@ -44,7 +45,7 @@ function cmd_install_parse_ini_main {
           CMD_INSTALL_PKG_NAME="$3"
           ;;
         deps)
-          CMD_INSTALL_PKG_DEST="$3"
+          CMD_INSTALL_PKG_DEST="$(pwd)/$3"
           ;;
       esac
       ;;
@@ -163,7 +164,7 @@ function cmd_install_dep {
           cat "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" | sed "s|__DIRNAME|${CMD_INSTALL_PKG_DEST}/${name}|g" >> "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}"
           ;;
         *)
-          ln -fs "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}"
+          lnk "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}" "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}"
           ;;
       esac
     done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "export.")
