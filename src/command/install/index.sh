@@ -64,7 +64,7 @@ function cmd_install_execute {
 function cmd_install_reset_generated {
   rm -rf "${CMD_INSTALL_PKG_DEST}/.__NAME"
   mkdir -p "${CMD_INSTALL_PKG_DEST}/.__NAME/include"
-  echo "INCLUDES+=-I ${CMD_INSTALL_PKG_DEST}/.__NAME/include" > "${CMD_INSTALL_PKG_DEST}/.__NAME/config.mk"
+  echo "INCLUDES+=-I${CMD_INSTALL_PKG_DEST}/.__NAME/include" > "${CMD_INSTALL_PKG_DEST}/.__NAME/config.mk"
   echo "" > "${CMD_INSTALL_PKG_DEST}/.__NAME/exported"
 }
 
