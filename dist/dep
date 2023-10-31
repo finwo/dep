@@ -296,7 +296,7 @@ function cmd_install_execute {
 function cmd_install_reset_generated {
   rm -rf "${CMD_INSTALL_PKG_DEST}/.dep"
   mkdir -p "${CMD_INSTALL_PKG_DEST}/.dep/include"
-  echo "INCLUDES+=-I ${CMD_INSTALL_PKG_DEST}/.dep/include" > "${CMD_INSTALL_PKG_DEST}/.dep/config.mk"
+  echo "INCLUDES+=-I${CMD_INSTALL_PKG_DEST}/.dep/include" > "${CMD_INSTALL_PKG_DEST}/.dep/config.mk"
   echo "" > "${CMD_INSTALL_PKG_DEST}/.dep/exported"
 }
 
