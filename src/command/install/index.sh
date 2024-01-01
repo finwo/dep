@@ -1,4 +1,5 @@
 # #include "util/ini.sh"
+# #include "util/ostype.sh"
 
 read -r -d '' help_topics[install] <<- EOF
 # #include "help.txt"
@@ -141,12 +142,20 @@ function cmd_install_dep {
     cmd_install_dep "$depname" "$deplink"
   done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "dependencies.")
 
-  # Handle any build-steps defined in the package.ini
+  # Handle any global build-steps defined in the package.ini
   if [ ! -z "$ISNEW" ]; then
     while read line; do
       buildcmd=${line#*=}
       bash -c "cd ${CMD_INSTALL_PKG_DEST}/${name} ; ${buildcmd}"
     done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "build." | sort --human-numeric-sort)
+  fi
+
+  # Handle any os-generic build-steps defined in the package.ini
+  if [ ! -z "$ISNEW" ] && ; then
+    while read line; do
+      buildcmd=${line#*=}
+      bash -c "cd ${CMD_INSTALL_PKG_DEST}/${name} ; ${buildcmd}"
+    done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "build-$(ostype)." | sort --human-numeric-sort)
   fi
 
   # Build the package's exports
