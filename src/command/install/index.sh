@@ -146,6 +146,7 @@ function cmd_install_dep {
   if [ ! -z "$ISNEW" ]; then
     while read line; do
       buildcmd=${line#*=}
+      echo $buildcmd
       bash -c "cd ${CMD_INSTALL_PKG_DEST}/${name} ; ${buildcmd}"
     done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "build." | sort --human-numeric-sort)
   fi
@@ -154,6 +155,7 @@ function cmd_install_dep {
   if [ ! -z "$ISNEW" ]; then
     while read line; do
       buildcmd=${line#*=}
+      echo $buildcmd
       bash -c "cd ${CMD_INSTALL_PKG_DEST}/${name} ; ${buildcmd}"
     done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "build-$(ostype)." | sort --human-numeric-sort)
   fi
