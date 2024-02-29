@@ -423,13 +423,16 @@ function cmd_install_dep {
     done < <(ini_foreach ini_output_section "${CMD_INSTALL_PKG_DEST}/${name}/package.ini" "export.")
   fi
 }
+
 read -r -d '' help_topics[repository] <<- EOF
 Usage: dep [global options] repository <command> <argument>
 
 Commands:
 
-  add <name> <manifest-url>  Add a repository to include during dependency adds
-  del <name>                 Delete a repository from your dependency adds
+  a(dd)      <name> <manifest-url>  Add a repository to fetch packages from
+  d(el(ete)) <name>                 Delete a repository
+  c(lean)                           Remove packages cache
+  u(pdate)                          Update packages cache
 EOF
 
 CMD_REPO_CMD=
@@ -446,13 +449,19 @@ function arg_repo {
 }
 function arg_repository {
   CMD_REPO_CMD=$1
-  CMD_REPO_NAME=$2
 
   case "${CMD_REPO_CMD}" in
-    add)
+    a|add)
+      CMD_REPO_NAME=$2
       CMD_REPO_LOC=$3
       ;;
-    del)
+    d|del|delete)
+      CMD_REPO_NAME=$2
+      ;;
+    c|clean)
+      # Intentionally empty
+      ;;
+    u|update)
       # Intentionally empty
       ;;
     *)
@@ -474,13 +483,43 @@ function cmd_repo {
 }
 function cmd_repository {
   case "${CMD_REPO_CMD}" in
-    add)
+    a|add)
       mkdir -p "${HOME}/.config/finwo/dep/repositories.d"
-      echo "${CMD_REPO_LOC}" >> "${HOME}/.config/finwo/dep/repositories.d/${CMD_REPO_NAME}.cnf"
+      echo "${CMD_REPO_NAME}=${CMD_REPO_LOC}" >> "${HOME}/.config/finwo/dep/repositories.d/50-${CMD_REPO_NAME}"
       ;;
-    del)
+    d|del|delete)
       mkdir -p "${HOME}/.config/finwo/dep/repositories.d"
-      rm -f "${HOME}/.config/finwo/dep/repositories.d/${CMD_REPO_NAME}.cnf"
+      rm -f "${HOME}/.config/finwo/dep/repositories.d/*-${CMD_REPO_NAME}"
+      ;;
+    c|clean)
+      rm -rf "${HOME}/.config/finwo/dep/packages"
+      mkdir -p "${HOME}/.config/finwo/dep/packages"
+      ;;
+    u|update)
+      rm -rf "${HOME}/.config/finwo/dep/packages"
+      mkdir -p "${HOME}/.config/finwo/dep/packages"
+      mkdir -p "${HOME}/.config/finwo/dep/repositories.d"
+
+      # Build complete repositories ini
+      echo "" > "${HOME}/.config/finwo/dep/repositories.tmp"
+      if [ -f "${HOME}/.config/finwo/dep/repositories" ]; then
+        echo "[repository]" >> "${HOME}/.config/finwo/dep/repositories.tmp"
+        cat "${HOME}/.config/finwo/dep/repositories" >> "${HOME}/.config/finwo/dep/repositories.tmp"
+      fi
+      for fname in $(ls "${HOME}/.config/finwo/dep/repositories.d/" | sort); do
+        echo "[repository]" >> "${HOME}/.config/finwo/dep/repositories.tmp"
+        cat "${HOME}/.config/finwo/dep/repositories.d/${fname}" >> "${HOME}/.config/finwo/dep/repositories.tmp"
+      done
+
+      # Download and extract them
+      while read source; do
+        curl --location --progress-bar "${source}" | \
+          tar --extract --directory "${HOME}/.config/finwo/dep/packages" --strip-components 1
+      done < <(ini_foreach ini_output_value "${HOME}/.config/finwo/dep/repositories.tmp" "repository.")
+
+      # Aannddd.. we're done with the tmp file
+      rm -f "${HOME}/.config/finwo/dep/repositories.tmp"
+
       ;;
     *)
       echo "Unknown command: ${CMD_REPO_CMD}" >&2

@@ -2,5 +2,7 @@ Usage: __NAME [global options] repository <command> <argument>
 
 Commands:
 
-  add <name> <manifest-url>  Add a repository to include during dependency adds
-  del <name>                 Delete a repository from your dependency adds
+  a(dd)      <name> <manifest-url>  Add a repository to fetch packages from
+  d(el(ete)) <name>                 Delete a repository
+  c(lean)                           Remove packages cache
+  u(pdate)                          Update packages cache

@@ -1,7 +1,10 @@
 SRC:=
 SRC+=$(wildcard src/*.sh)
+SRC+=$(wildcard src/*.txt)
 SRC+=$(wildcard src/*/*.sh)
+SRC+=$(wildcard src/*/*.txt)
 SRC+=$(wildcard src/*/*/*.sh)
+SRC+=$(wildcard src/*/*/*.txt)
 
 PREPROCESS=preprocess --substitute
 DESTDIR?=/usr/local
