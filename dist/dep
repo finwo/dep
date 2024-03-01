@@ -115,6 +115,9 @@ function ini_write {
     SECTION=${KEYFULL%%.*}
     KEY=${KEYFULL#*.}
     if [[ "${SECTION}" != "${PREVIOUSSECTION}" ]]; then
+      if [ ! -z "${PREVIOUSSECTION}" ]; then
+        echo "" >> "$1"
+      fi
       echo "[${SECTION}]" >> "$1"
       PREVIOUSSECTION="${SECTION}"
     fi
