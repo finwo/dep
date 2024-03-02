@@ -12,43 +12,6 @@ function arg_a {
 }
 function arg_add {
   CMD_ADD_ARGS=("$@")
-
-  # # Check if name exists in the repositories
-  # # Returns if found
-  # mkdir -p "${HOME}/.config/finwo/dep/repositories.d"
-  # while read repo; do
-
-  #   # Trim whitespace
-  #   repo=${repo##*( )}
-  #   repo=${repo%%*( )}
-
-  #   # Remove comments and empty lines
-  #   if [[ "${repo:0:1}" == '#' ]] || [[ "${repo:0:1}" == ';' ]] || [[ "${#repo}" == 0 ]]; then
-  #     continue
-  #   fi
-
-  #   while read line; do
-  #     pkgname="${line%%=*}"
-  #     pkgloc="${line##*=}"
-  #     # If found, return it
-  #     if [ "${pkgname}" == "$1" ]; then
-  #       CMD_ADD_SRC="${pkgloc}"
-  #       break 2
-  #     fi
-  #   done < <(curl --location --silent "${repo}")
-  # done < <(find "${HOME}/.config/finwo/dep/repositories.d" -type f -name '*.cnf' | xargs -n 1 -P 1 cat)
-
-  # # Need 2 arguments from here on out
-  # if [ -z "${CMD_ADD_SRC}" ] && [ $# != 2 ]; then
-  #   echo "Add command requires 2 arguments" >&2
-  #   exit 1
-  # fi
-
-  # CMD_ADD_PKG="$1"
-  # if [ -z "${CMD_ADD_SRC}" ]; then
-  #   CMD_ADD_SRC="$2"
-  # fi
-
   return 0
 }
 
@@ -86,11 +49,11 @@ function cmd_add {
   # Extension: Check release/branch on github
   PKGGH=$(ini_foreach ini_output_value "${PKGINI}" "repository.github")
   if [ ! -z "${PKGGH}" ]; then
-    RELEASEURL="https://api.github.com/repos/${PKGGH}/releases/tags/${PKG[1]}"
-    BRANCHURL="https://api.github.com/repos/${PKGGH}/branches/${PKG[1]}"
-    CODE_RELEASE=$(curl --fail --dump-header - -o /dev/null "${RELEASEURL}" 2>/dev/null | head -1 | awk '{print $2}')
-    CODE_BRANCH=$(curl --fail --dump-header - -o /dev/null "${BRANCHURL}" 2>/dev/null | head -1 | awk '{print $2}')
-    if [ "${CODE_RELEASE}" != "200" ] && [ "${CODE_BRANCH}" != "200" ]; then
+    URL_TAG="https://codeload.github.com/${PKGGH}/tar.gz/refs/tags/${PKG[1]}"
+    URL_BRANCH="https://codeload.github.com/${PKGGH}/tar.gz/refs/heads/${PKG[1]}"
+    CODE_TAG=$(curl -X HEAD --fail --dump-header - -o /dev/null "${URL_TAG}" 2>/dev/null | head -1 | awk '{print $2}')
+    CODE_BRANCH=$(curl -X HEAD --fail --dump-header - -o /dev/null "${URL_BRANCH}" 2>/dev/null | head -1 | awk '{print $2}')
+    if [ "${CODE_TAG}" != "200" ] && [ "${CODE_BRANCH}" != "200" ]; then
       echo "No release or branch '${PKG[1]}' found in the github repository ${PKGGH}." >&2
       echo "Check https://github.com/${PKGGH} to see the available releases and branches" >&2
       exit 1
