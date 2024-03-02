@@ -83,7 +83,7 @@ function cmd_repository {
       # Download and extract them
       while read source; do
         curl --location --progress-bar "${source}" | \
-          tar --extract --directory "${HOME}/.config/finwo/__NAME/packages" --strip-components 1
+          tar --gunzip --extract --directory "${HOME}/.config/finwo/__NAME/packages" --strip-components 1
       done < <(ini_foreach ini_output_value "${HOME}/.config/finwo/__NAME/repositories.tmp" "repository.")
 
       # Aannddd.. we're done with the tmp file
