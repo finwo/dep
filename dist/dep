@@ -331,8 +331,8 @@ function cmd_install_parse_ini {
 # }
 
 function cmd_install_dep {
-  PKGNAME=$1
-  PKGVER=$2
+  local PKGNAME=$1
+  local PKGVER=$2
 
   # Skip if already installed
   if [ -d "${CMD_INSTALL_PKG_DEST}/${PKGNAME}" ]; then
@@ -340,9 +340,9 @@ function cmd_install_dep {
   fi
 
   # Fetch versioned ini
-  PKGINIB="${HOME}/.config/finwo/dep/packages/${PKGNAME}/package.ini"
-  PKGINIV="${HOME}/.config/finwo/dep/packages/${PKGNAME}/${PKGVER}/package.ini"
-  PKGINI=
+  local PKGINIB="${HOME}/.config/finwo/dep/packages/${PKGNAME}/package.ini"
+  local PKGINIV="${HOME}/.config/finwo/dep/packages/${PKGNAME}/${PKGVER}/package.ini"
+  local PKGINI=
   if [ -f "${PKGINIB}" ]; then PKGINI="${PKGINIB}"; fi
   if [ -f "${PKGINIV}" ]; then PKGINI="${PKGINIV}"; fi
   if [ -z "${PKGINI}" ]; then
@@ -351,15 +351,15 @@ function cmd_install_dep {
   fi
 
   # Copy repository's config for the package
-  PKG_SRC=$(dirname "${PKGINI}")
-  PKG_DIR="${CMD_INSTALL_PKG_DEST}/${PKGNAME}"
+  local PKG_SRC=$(dirname "${PKGINI}")
+  local PKG_DIR="${CMD_INSTALL_PKG_DEST}/${PKGNAME}"
   mkdir -p "$(dirname "${PKG_DIR}")"
   cp -r "${PKG_SRC}" "${PKG_DIR}"
-  PKGINI="${PKG_DIR}/package.ini"
+  local PKGINI="${PKG_DIR}/package.ini"
 
   # Extended fetching detection
-  PKG_GH=$(ini_foreach ini_output_value "${PKGINI}" "repository.github")
-  PKG_TARBALL=$(ini_foreach ini_output_value "${PKGINI}" "package.src")
+  local PKG_GH=$(ini_foreach ini_output_value "${PKGINI}" "repository.github")
+  local PKG_TARBALL=$(ini_foreach ini_output_value "${PKGINI}" "package.src")
 
   # Fetch target tarball from github repo
   if [ ! -z "${PKG_GH}" ]; then
@@ -386,20 +386,24 @@ function cmd_install_dep {
     tar --extract --directory "${PKG_DIR}/" --strip-components 1 --file="${TARBALL_FILE}"
   fi
 
-  # Handle the package's dependencies
-  ini_foreach cmd_install_parse_ini "${PKGINI}" "dependencies."
+  # Handle any global build-steps defined in the package.ini
+  while read line; do
+    depname=${line%%=*}
+    depver=${line#*=}
+    cmd_install_dep "$depname" "$depver"
+  done < <(ini_foreach ini_output_section "${PKGINI}" "dependencies." | sort --human-numeric-sort)
 
   # Handle any global build-steps defined in the package.ini
   while read line; do
     buildcmd=${line#*=}
-    echo $buildcmd
+    echo + $buildcmd
     bash -c "cd '${PKG_DIR}' ; ${buildcmd}"
   done < <(ini_foreach ini_output_section "${PKGINI}" "build." | sort --human-numeric-sort)
 
   # Handle any os-generic build-steps defined in the package.ini
   while read line; do
     buildcmd=${line#*=}
-    echo $buildcmd
+    echo + $buildcmd
     bash -c "cd '${PKG_DIR}' ; ${buildcmd}"
   done < <(ini_foreach ini_output_section "${PKGINI}" "build-$(ostype)." | sort --human-numeric-sort)
 
