@@ -5,8 +5,12 @@ runs:
   using: "composite"
   steps:
 
-    - shell: bash
+    - name: Extend executable path
+      shell: bash
+      run: echo "${GITHUB_ACTION_PATH}/dist" >> $GITHUB_PATH
+
+    - name: Install default repositories
+      shell: bash
       run: |
-        echo "${GITHUB_ACTION_PATH}/dist" >> $GITHUB_PATH
         dep repository add finwo 'https://github.com/finwo/dep-repository/archive/refs/heads/main.tar.gz'
         dep repository update
