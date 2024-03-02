@@ -58,34 +58,48 @@ function cmd_a {
 }
 function cmd_add {
   OLD_PKG=$(ini_foreach ini_output_full "package.ini")
-  CHANNEL=$(ini_foreach ini_output_value "package.ini" "package.channel" | tail -n 1)
 
-  # Get target & version
+  # TODO: Assume package name is github repo if missing?
+
+  # Get target & main package file
   PKG=(${CMD_ADD_ARGS[0]//@/ })
-  if [[ "${PKG[1]}" == "" ]]; then PKG[1]=$CHANNEL; fi
-
-  # Find the package in the package cache
-  PKGINIV="${HOME}/.config/finwo/__NAME/packages/${PKG[0]}/${PKG[1]}/package.ini"
   PKGINIB="${HOME}/.config/finwo/__NAME/packages/${PKG[0]}/package.ini"
-  PKGINI=
-  if [ -f "${PKGINIB}" ]; then PKGINI="${PKGINIB}"; fi
-  if [ -f "${PKGINIV}" ]; then PKGINI="${PKGINIV}"; fi
-  if [ -z "${PKGINI}" ]; then
+  if [ ! -f "${PKGINIB}" ]; then
     echo "Package not found. Did you update your repositories?" >&2
     exit 1
   fi
 
+  # Get the version to add
+  if [ -z "${PKG[1]}" ]; then PKG[1]=$(ini_foreach ini_output_value "${PKGINIB}" "package.channel" | tail -n 1); fi
+  if [ -z "${PKG[1]}" ]; then PKG[1]=$(ini_foreach ini_output_value "package.ini" "package.channel" | tail -n 1); fi
+  if [ -z "${PKG[1]}" ]; then
+    echo "Could not determine desired package version. Set 'package.channel' in your package.ini to select a fallback or use 'dep repository add ${PKG[0]}@<version>' to select a specific version." >&2
+    exit 1
+  fi
 
-  echo $CHANNEL
-  echo $PKGINIB
-  echo $PKGINIV
-  echo $PKGINI
-  echo ${PKG[0]}
-  echo ${PKG[1]}
+  # Fetch the version-specific ini
+  PKGINIV="${HOME}/.config/finwo/__NAME/packages/${PKG[0]}/${PKG[1]}/package.ini"
+  PKGINI=
+  if [ -f "${PKGINIB}" ]; then PKGINI="${PKGINIB}"; fi
+  if [ -f "${PKGINIV}" ]; then PKGINI="${PKGINIV}"; fi
 
+  # Extension: Check release/branch on github
+  PKGGH=$(ini_foreach ini_output_value "${PKGINI}" "repository.github")
+  if [ ! -z "${PKGGH}" ]; then
+    RELEASEURL="https://api.github.com/repos/${PKGGH}/releases/tags/${PKG[1]}"
+    BRANCHURL="https://api.github.com/repos/${PKGGH}/branches/${PKG[1]}"
+    CODE_RELEASE=$(curl --fail --dump-header - -o /dev/null "${RELEASEURL}" 2>/dev/null | head -1 | awk '{print $2}')
+    CODE_BRANCH=$(curl --fail --dump-header - -o /dev/null "${BRANCHURL}" 2>/dev/null | head -1 | awk '{print $2}')
+    if [ "${CODE_RELEASE}" != "200" ] && [ "${CODE_BRANCH}" != "200" ]; then
+      echo "No release or branch '${PKG[1]}' found in the github repository ${PKGGH}." >&2
+      echo "Check https://github.com/${PKGGH} to see the available releases and branches" >&2
+      exit 1
+    fi
+  fi
 
-
-  # (echo "dependencies.${CMD_ADD_PKG}=${CMD_ADD_SRC}" ; echo -e "${OLD_PKG}") | ini_write "package.ini"
+  # Add the package to the dependencies
+  (echo "dependencies.${PKG[0]}=${PKG[1]}" ; echo -e "${OLD_PKG}") | ini_write "package.ini"
+  echo "Added to your package.ini: ${PKG[0]}@${PKG[1]}"
 }
 
 cmds[${#cmds[*]}]="a"
