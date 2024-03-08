@@ -31,6 +31,55 @@ Installation
 To install dep, simply download [dist/dep](dist/dep) and place it in your
 `/usr/local/bin` directory or anywhere else that's included in your `$PATH`.
 
+By default, no default repositories are enabled, so it's advisable to run the
+following to enable the official repository:
+
+```sh
+dep repository add finwo https://github.com/finwo/dep-repository/archive/refs/heads/main.tar.gz
+```
+
+Usage
+-----
+
+#### Update repositories
+
+dep keeps local cache of the repositories you have enabled. To update this
+cache, run the following command
+
+```sh
+dep repository update
+```
+
+#### Adding a dependency to your project
+
+To add a package, you can call the following command to install a specific
+version of the package:
+
+```sh
+dep add package/identifier@version
+```
+
+If you have package.channel set in your project's package.ini, you can also
+leave the version from the command to automatically select the version you've
+set there.
+
+```ini
+[package]
+channel=edge
+```
+
+```sh
+dep add package/identifier
+```
+
+For example, if you'd want to install the [finwo/palloc][palloc] package, you
+could use the following comamnd:
+
+```sh
+dep add finwo/palloc@edge # with version specifier
+dep add finwo/palloc      # without version specifier
+```
+
 Building
 --------
 
@@ -53,3 +102,5 @@ License
 -------
 
 This project falls under the [MIT license](LICENSE)
+
+[palloc]: https://github.com/finwo/palloc.c
