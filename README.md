@@ -3,8 +3,8 @@ dep
 
 General purpose dependency manager, with a slight focus on static C libraries
 
-Usage
------
+Summary
+-------
 
 ```
 Usage: dep [global options] <command> [options] [-- ...args]
