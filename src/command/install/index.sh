@@ -83,11 +83,6 @@ function cmd_install_dep {
   local PKGNAME=$1
   local PKGVER=$2
 
-  # Skip if already installed
-  if [ -d "${CMD_INSTALL_PKG_DEST}/${PKGNAME}" ]; then
-    return 0
-  fi
-
   # Fetch versioned ini
   local PKGINIB="${HOME}/.config/finwo/__NAME/packages/${PKGNAME}/package.ini"
   local PKGINIV="${HOME}/.config/finwo/__NAME/packages/${PKGNAME}/${PKGVER}/package.ini"
@@ -106,55 +101,60 @@ function cmd_install_dep {
   cp -r "${PKG_SRC}" "${PKG_DIR}"
   local PKGINI="${PKG_DIR}/package.ini"
 
-  # Extended fetching detection
-  local PKG_GH=$(ini_foreach ini_output_value "${PKGINI}" "repository.github")
-  local PKG_TARBALL=$(ini_foreach ini_output_value "${PKGINI}" "package.src")
+  # Skip if already installed
+  if [ ! -d "${CMD_INSTALL_PKG_DEST}/${PKGNAME}" ]; then
 
-  # Fetch target tarball from github repo
-  if [ ! -z "${PKG_GH}" ]; then
-    URL_TAG="https://codeload.github.com/${PKG_GH}/tar.gz/refs/tags/${PKGVER}"
-    URL_BRANCH="https://codeload.github.com/${PKG_GH}/tar.gz/refs/heads/${PKGVER}"
-    CODE_TAG=$(curl -X HEAD --fail --dump-header - -o /dev/null "${URL_TAG}" 2>/dev/null | head -1 | awk '{print $2}')
-    CODE_BRANCH=$(curl -X HEAD --fail --dump-header - -o /dev/null "${URL_BRANCH}" 2>/dev/null | head -1 | awk '{print $2}')
-    if [ "${CODE_TAG}" == "200" ]; then
-      PKG_TARBALL="${URL_TAG}"
-    elif [ "${CODE_BRANCH}" == "200" ]; then
-      PKG_TARBALL="${URL_BRANCH}"
+    # Extended fetching detection
+    local PKG_GH=$(ini_foreach ini_output_value "${PKGINI}" "repository.github")
+    local PKG_TARBALL=$(ini_foreach ini_output_value "${PKGINI}" "package.src")
+
+    # Fetch target tarball from github repo
+    if [ ! -z "${PKG_GH}" ]; then
+      URL_TAG="https://codeload.github.com/${PKG_GH}/tar.gz/refs/tags/${PKGVER}"
+      URL_BRANCH="https://codeload.github.com/${PKG_GH}/tar.gz/refs/heads/${PKGVER}"
+      CODE_TAG=$(curl -X HEAD --fail --dump-header - -o /dev/null "${URL_TAG}" 2>/dev/null | head -1 | awk '{print $2}')
+      CODE_BRANCH=$(curl -X HEAD --fail --dump-header - -o /dev/null "${URL_BRANCH}" 2>/dev/null | head -1 | awk '{print $2}')
+      if [ "${CODE_TAG}" == "200" ]; then
+        PKG_TARBALL="${URL_TAG}"
+      elif [ "${CODE_BRANCH}" == "200" ]; then
+        PKG_TARBALL="${URL_BRANCH}"
+      fi
     fi
-  fi
 
-  # Fetch configured or detected tarball
-  if [ ! -z "${PKG_TARBALL}" ]; then
-    # Downloads a tarball and extracts if over the package in our dependency directory
-    # TARBALL_FILE="${HOME}/.config/finwo/__NAME/cache/${PKGNAME}/${PKGVER}.tar.gz"
-    TARBALL_FILE="${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${PKGNAME}/${PKGVER}.tar.gz"
-    mkdir -p "$(dirname "${TARBALL_FILE}")"
-    if [ ! -f "${TARBALL_FILE}" ]; then
-      curl --location --progress-bar "${PKG_TARBALL}" --output "${TARBALL_FILE}"
+    # Fetch configured or detected tarball
+    if [ ! -z "${PKG_TARBALL}" ]; then
+      # Downloads a tarball and extracts if over the package in our dependency directory
+      # TARBALL_FILE="${HOME}/.config/finwo/__NAME/cache/${PKGNAME}/${PKGVER}.tar.gz"
+      TARBALL_FILE="${CMD_INSTALL_PKG_DEST}/.__NAME/cache/${PKGNAME}/${PKGVER}.tar.gz"
+      mkdir -p "$(dirname "${TARBALL_FILE}")"
+      if [ ! -f "${TARBALL_FILE}" ]; then
+        curl --location --progress-bar "${PKG_TARBALL}" --output "${TARBALL_FILE}"
+      fi
+      tar --extract --directory "${PKG_DIR}/" --strip-components 1 --file="${TARBALL_FILE}"
     fi
-    tar --extract --directory "${PKG_DIR}/" --strip-components 1 --file="${TARBALL_FILE}"
+
+    # Handle any global build-steps defined in the package.ini
+    while read line; do
+      depname=${line%%=*}
+      depver=${line#*=}
+      cmd_install_dep "$depname" "$depver"
+    done < <(ini_foreach ini_output_section "${PKGINI}" "dependencies." | sort --human-numeric-sort)
+
+    # Handle any global build-steps defined in the package.ini
+    while read line; do
+      buildcmd=${line#*=}
+      echo + $buildcmd
+      bash -c "cd '${PKG_DIR}' ; ${buildcmd}"
+    done < <(ini_foreach ini_output_section "${PKGINI}" "build." | sort --human-numeric-sort)
+
+    # Handle any os-generic build-steps defined in the package.ini
+    while read line; do
+      buildcmd=${line#*=}
+      echo + $buildcmd
+      bash -c "cd '${PKG_DIR}' ; ${buildcmd}"
+    done < <(ini_foreach ini_output_section "${PKGINI}" "build-$(ostype)." | sort --human-numeric-sort)
+
   fi
-
-  # Handle any global build-steps defined in the package.ini
-  while read line; do
-    depname=${line%%=*}
-    depver=${line#*=}
-    cmd_install_dep "$depname" "$depver"
-  done < <(ini_foreach ini_output_section "${PKGINI}" "dependencies." | sort --human-numeric-sort)
-
-  # Handle any global build-steps defined in the package.ini
-  while read line; do
-    buildcmd=${line#*=}
-    echo + $buildcmd
-    bash -c "cd '${PKG_DIR}' ; ${buildcmd}"
-  done < <(ini_foreach ini_output_section "${PKGINI}" "build." | sort --human-numeric-sort)
-
-  # Handle any os-generic build-steps defined in the package.ini
-  while read line; do
-    buildcmd=${line#*=}
-    echo + $buildcmd
-    bash -c "cd '${PKG_DIR}' ; ${buildcmd}"
-  done < <(ini_foreach ini_output_section "${PKGINI}" "build-$(ostype)." | sort --human-numeric-sort)
 
   # Build the package's exports
   if ! grep "${PKGNAME}" "${CMD_INSTALL_PKG_DEST}/.__NAME/exported" &>/dev/null ; then
