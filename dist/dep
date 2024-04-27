@@ -345,15 +345,18 @@ function cmd_install_dep {
     exit 1
   fi
 
-  # Copy repository's config for the package
-  local PKG_SRC=$(dirname "${PKGINI}")
-  local PKG_DIR="${CMD_INSTALL_PKG_DEST}/${PKGNAME}"
-  mkdir -p "$(dirname "${PKG_DIR}")"
-  cp -r "${PKG_SRC}" "${PKG_DIR}"
-  local PKGINI="${PKG_DIR}/package.ini"
+  if [ -d "${PKG_DIR}" ]; then
+    # Already installed, just update the pkgini ref
+    PKGINI="${CMF_INSTALL_PKG_DEST}/${PKGNAME}/package.ini"
+  else
+    # Not installed yet, fetch code & run build steps
 
-  # Skip if already installed
-  if [ ! -d "${CMD_INSTALL_PKG_DEST}/${PKGNAME}" ]; then
+    # Copy repository's config for the package
+    local PKG_SRC=$(dirname "${PKGINI}")
+    local PKG_DIR="${CMD_INSTALL_PKG_DEST}/${PKGNAME}"
+    mkdir -p "$(dirname "${PKG_DIR}")"
+    cp -r "${PKG_SRC}" "$(dirname ${PKG_DIR})"
+    PKGINI="${PKG_DIR}/package.ini"
 
     # Extended fetching detection
     local PKG_GH=$(ini_foreach ini_output_value "${PKGINI}" "repository.github")
@@ -404,7 +407,6 @@ function cmd_install_dep {
       echo + $buildcmd
       bash -c "cd '${PKG_DIR}' ; ${buildcmd}"
     done < <(ini_foreach ini_output_section "${PKGINI}" "build-$(ostype)." | sort --human-numeric-sort)
-
   fi
 
   # Build the package's exports
