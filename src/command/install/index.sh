@@ -33,11 +33,11 @@ function cmd_install {
   CMD_INSTALL_PKG_DEST=$(ini_foreach ini_output_value "${PACKAGE_PATH}" "package.deps")
   if [ -z "${CMD_INSTALL_PKG_DEST}" ]; then CMD_INSTALL_PKG_DEST="lib"; fi
 
-  # Reset working directory
-  rm -rf "${CMD_INSTALL_PKG_DEST}/.__NAME"
+  # Reset working directory - keep cache
+  rm -fr "${CMD_INSTALL_PKG_DEST}/.__NAME/include"
   mkdir -p "${CMD_INSTALL_PKG_DEST}/.__NAME/include"
   echo "INCLUDES+=-I${CMD_INSTALL_PKG_DEST}/.__NAME/include" > "${CMD_INSTALL_PKG_DEST}/.__NAME/config.mk"
-  echo "" > "${CMD_INSTALL_PKG_DEST}/.__NAME/exported"
+  echo -n "" > "${CMD_INSTALL_PKG_DEST}/.__NAME/exported"
 
   # Install all dependencies
   ini_foreach cmd_install_parse_ini "${PACKAGE_PATH}"
