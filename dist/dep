@@ -345,15 +345,15 @@ function cmd_install_dep {
     exit 1
   fi
 
+  local PKG_DIR="${CMD_INSTALL_PKG_DEST}/${PKGNAME}"
   if [ -d "${PKG_DIR}" ]; then
     # Already installed, just update the pkgini ref
-    PKGINI="${CMF_INSTALL_PKG_DEST}/${PKGNAME}/package.ini"
+    PKGINI="${CMD_INSTALL_PKG_DEST}/${PKGNAME}/package.ini"
   else
     # Not installed yet, fetch code & run build steps
 
     # Copy repository's config for the package
     local PKG_SRC=$(dirname "${PKGINI}")
-    local PKG_DIR="${CMD_INSTALL_PKG_DEST}/${PKGNAME}"
     mkdir -p "$(dirname "${PKG_DIR}")"
     cp -r "${PKG_SRC}" "$(dirname ${PKG_DIR})"
     PKGINI="${PKG_DIR}/package.ini"
@@ -387,7 +387,7 @@ function cmd_install_dep {
       tar --extract --directory "${PKG_DIR}/" --strip-components 1 --file="${TARBALL_FILE}"
     fi
 
-    # Handle any global build-steps defined in the package.ini
+    # Install this dependency's dependencies
     while read line; do
       depname=${line%%=*}
       depver=${line#*=}
