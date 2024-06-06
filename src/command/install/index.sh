@@ -173,8 +173,8 @@ function cmd_install_dep {
           cat "${PKG_DIR}/${filesource}" | sed "s|__DIRNAME|${PKG_DIR}|g" >> "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}"
           ;;
         *)
-          # ls -sf "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}"
-          cp "${PKG_DIR}/${filesource}" "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}"
+          ls -sf $(realpath "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}") "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}"
+          # cp "${PKG_DIR}/${filesource}" "${CMD_INSTALL_PKG_DEST}/.__NAME/${filetarget}"
           ;;
       esac
     done < <(ini_foreach ini_output_section "${PKGINI}" "export.")
