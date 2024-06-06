@@ -424,7 +424,7 @@ function cmd_install_dep {
           cat "${PKG_DIR}/${filesource}" | sed "s|__DIRNAME|${PKG_DIR}|g" >> "${CMD_INSTALL_PKG_DEST}/.dep/${filetarget}"
           ;;
         *)
-          ln -sf $(realpath "${CMD_INSTALL_PKG_DEST}/${name}/${filesource}") "${CMD_INSTALL_PKG_DEST}/.dep/${filetarget}"
+          ln -sf "$(pwd)/${CMD_INSTALL_PKG_DEST}/${name}/${filesource}" "${CMD_INSTALL_PKG_DEST}/.dep/${filetarget}"
           # cp "${PKG_DIR}/${filesource}" "${CMD_INSTALL_PKG_DEST}/.dep/${filetarget}"
           ;;
       esac
