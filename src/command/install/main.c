@@ -58,6 +58,47 @@ static char *trim_whitespace(char *str) {
   return str;
 }
 
+static char *spec_to_url(const char *name, const char *spec) {
+  if (strlen(spec) > 0 && is_url(spec)) {
+    return strdup(spec);
+  }
+
+  char *full_ref = NULL;
+
+  if (strlen(spec) > 0) {
+    full_ref = query_github_matching_ref(name, spec);
+    if (!full_ref) {
+      fprintf(stderr, "Error: ref '%s' not found for %s\n", spec, name);
+      return NULL;
+    }
+  } else {
+    char *branch = query_github_default_branch(name);
+    if (!branch) {
+      fprintf(stderr, "Warning: could not determine default branch for %s, using 'main'\n", name);
+      branch = strdup("main");
+    }
+    full_ref = malloc(256);
+    if (full_ref) {
+      snprintf(full_ref, 256, "refs/heads/%s", branch);
+    }
+    free(branch);
+  }
+
+  if (!full_ref) {
+    fprintf(stderr, "Error: could not determine ref for %s\n", name);
+    return NULL;
+  }
+
+  char *url = malloc(2048);
+  if (!url) {
+    free(full_ref);
+    return NULL;
+  }
+  snprintf(url, 2048, "https://github.com/%s/archive/%s.tar.gz", name, full_ref);
+  free(full_ref);
+  return url;
+}
+
 static int mem_read(mtar_t *tar, void *data, unsigned size) {
   membuffer_t *buf = (membuffer_t *)tar->stream;
   if (buf->pos + size > buf->size) {
@@ -384,6 +425,60 @@ static int install_dependency(const char *name, const char *spec) {
   if (download_and_extract(url, lib_path) != 0) {
     fprintf(stderr, "Error: failed to install %s\n", name);
     return -1;
+  }
+
+  // Process .dep.chain recursively
+  char dep_chain_path[PATH_MAX];
+  while (1) {
+    // Build .dep.chain path
+    snprintf(dep_chain_path, sizeof(dep_chain_path), "%s/.dep.chain", lib_path);
+
+    // Check if .dep.chain exists
+    FILE *chain_file = fopen(dep_chain_path, "r");
+    if (!chain_file) {
+      break;  // No more chaining
+    }
+
+    // Read spec (single line)
+    char spec[1024] = {0};
+    if (!fgets(spec, sizeof(spec), chain_file)) {
+      fclose(chain_file);
+      fprintf(stderr, "Error: failed to read .dep.chain\n");
+      return -1;
+    }
+    fclose(chain_file);
+
+    // Delete .dep.chain file
+    if (remove(dep_chain_path) != 0) {
+      fprintf(stderr, "Warning: failed to remove .dep.chain\n");
+      // Continue anyway - spec was read
+    }
+
+    // Trim whitespace/newline from spec
+    char *trimmed = trim_whitespace(spec);
+    if (strlen(trimmed) == 0) {
+      fprintf(stderr, "Warning: empty spec in .dep.chain\n");
+      continue;
+    }
+
+    printf("Found .dep.chain, chaining to: %s\n", trimmed);
+
+    // Resolve spec to URL
+    char *overlay_url = spec_to_url(name, trimmed);
+    if (!overlay_url) {
+      fprintf(stderr, "Error: failed to resolve chained spec '%s'\n", trimmed);
+      return -1;
+    }
+
+    // Overlay extract (directly over existing files)
+    printf("Overlaying %s from %s\n", name, overlay_url);
+    if (download_and_extract(overlay_url, lib_path) != 0) {
+      fprintf(stderr, "Error: failed to overlay chained dependency\n");
+      free(overlay_url);
+      return -1;
+    }
+    free(overlay_url);
+    // Loop continues to check for new .dep.chain
   }
 
   printf("Installed %s\n", name);
