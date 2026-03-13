@@ -93,6 +93,85 @@ static char *spec_to_url(const char *name, const char *spec) {
   return url;
 }
 
+static int process_dep_export_file(const char *dep_dir, const char *name) {
+  char export_path[PATH_MAX];
+  snprintf(export_path, sizeof(export_path), "%s/.dep.export", dep_dir);
+  FILE *f = fopen(export_path, "r");
+  if (!f) {
+    return 0;
+  }
+
+  char dep_base[PATH_MAX];
+  if (getcwd(dep_base, sizeof(dep_base)) == NULL) {
+    fprintf(stderr, "Error: failed to get current working directory\n");
+    fclose(f);
+    return -1;
+  }
+
+  char line[PATH_MAX];
+  while (fgets(line, sizeof(line), f)) {
+    char *comment = strchr(line, '#');
+    if (comment) *comment = '\0';
+
+    char *trimmed = trim_whitespace(line);
+    if (strlen(trimmed) == 0) continue;
+
+    char source[512] = {0};
+    char target[512] = {0};
+
+    char *space_pos        = strchr(trimmed, ' ');
+    char *tab_pos          = strchr(trimmed, '\t');
+    char *first_whitespace = NULL;
+    if (space_pos && tab_pos) {
+      first_whitespace = (space_pos < tab_pos) ? space_pos : tab_pos;
+    } else if (space_pos) {
+      first_whitespace = space_pos;
+    } else if (tab_pos) {
+      first_whitespace = tab_pos;
+    }
+
+    if (first_whitespace) {
+      size_t source_len = first_whitespace - trimmed;
+      strncpy(source, trimmed, source_len);
+      source[source_len] = '\0';
+      strcpy(target, trim_whitespace(first_whitespace + 1));
+    } else {
+      continue;
+    }
+
+    if (strlen(source) == 0 || strlen(target) == 0) continue;
+
+    char source_parent[PATH_MAX];
+    strncpy(source_parent, source, sizeof(source_parent) - 1);
+    source_parent[sizeof(source_parent) - 1] = '\0';
+    char *last_slash                         = strrchr(source_parent, '/');
+    if (last_slash) {
+      *last_slash = '\0';
+      char parent_dir[PATH_MAX];
+      snprintf(parent_dir, sizeof(parent_dir), "lib/.dep/%s", source_parent);
+      mkdir_recursive(parent_dir);
+    } else {
+      mkdir_recursive("lib/.dep");
+    }
+
+    char target_abs[PATH_MAX];
+    snprintf(target_abs, sizeof(target_abs), "%s/lib/%s/%s", dep_base, name, target);
+
+    char link_path[PATH_MAX];
+    snprintf(link_path, sizeof(link_path), "lib/.dep/%s", source);
+
+    unlink(link_path);
+    if (symlink(target_abs, link_path) != 0) {
+      fprintf(stderr, "Warning: failed to create symlink %s -> %s\n", link_path, target_abs);
+    } else {
+      printf("Exported %s -> %s\n", source, target_abs);
+    }
+  }
+
+  fclose(f);
+  return 0;
+}
+
 static int process_dep_file_in_dir(const char *dep_dir) {
   char dep_path[PATH_MAX];
   snprintf(dep_path, sizeof(dep_path), "%s/.dep", dep_dir);
@@ -274,6 +353,10 @@ static int install_dependency(const char *name, const char *spec) {
       fprintf(stderr, "Warning: could not open %s for appending\n", deb_config_path);
     }
     fclose(dep_config);
+  }
+
+  if (process_dep_export_file(lib_path, name) != 0) {
+    fprintf(stderr, "Warning: failed to process .dep.export file for %s\n", name);
   }
 
   printf("Installed %s\n", name);
