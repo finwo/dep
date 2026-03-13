@@ -1,6 +1,8 @@
 CC?=clang
 
 FIND=$(shell which gfind find | head -1)
+OBJCOPY=$(shell which objcopy)
+
 SRC:=
 INCLUDES:=
 CFLAGS:=
@@ -33,10 +35,15 @@ SRC+=lib/rxi/microtar/src/microtar.c
 
 OBJ:=$(SRC:.c=.o)
 OBJ:=$(OBJ:.cc=.o)
+OBJ+=license.o
+
 CFLAGS+=${INCLUDES}
 
 .PHONY: default
 default: dep
+
+license.o: LICENSE.md
+	$(OBJCOPY) --input binary --output elf64-x86-64 --binary-architecture i386 $< $@
 
 lib/cofyc/argparse:
 	mkdir -p lib/cofyc/argparse
@@ -61,3 +68,8 @@ lib/rxi/microtar:
 
 dep: $(LIBS) $(OBJ)
 	${CC} ${OBJ} ${CFLAGS} ${LDFLAGS} -o $@
+
+.PHONY: clean
+clean:
+	rm -f $(OBJ)
+
