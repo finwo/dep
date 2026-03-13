@@ -6,16 +6,15 @@
 #include "erkkah/naett.h"
 #include "rxi/microtar.h"
 
+#include "command/command.h"
+
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+
+struct cmd_struct *commands = NULL;
 
 static const char *const usages[] = {
     "subcommands [options] [cmd] [args]",
     NULL,
-};
-
-struct cmd_struct {
-    const char *cmd;
-    int (*fn) (int, const char **);
 };
 
 int
@@ -57,11 +56,6 @@ cmd_bar(int argc, const char **argv)
     return 0;
 }
 
-static struct cmd_struct commands[] = {
-    {"foo", cmd_foo},
-    {"bar", cmd_bar},
-};
-
 int
 main(int argc, const char **argv)
 {
@@ -78,11 +72,10 @@ main(int argc, const char **argv)
     }
 
     /* Try to run command with args provided. */
-    struct cmd_struct *cmd = NULL;
-    for (int i = 0; i < ARRAY_SIZE(commands); i++) {
-        if (!strcmp(commands[i].cmd, argv[0])) {
-            cmd = &commands[i];
-        }
+    struct cmd_struct *cmd = commands;
+    while(cmd) {
+        if (!strcmp(cmd->cmd, argv[0])) break;
+        cmd = cmd->next;
     }
     if (cmd) {
         return cmd->fn(argc, argv);
