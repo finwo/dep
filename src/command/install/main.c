@@ -115,18 +115,26 @@ static int process_dep_file_in_dir(const char *dep_dir) {
     char name[256]  = {0};
     char spec[1024] = {0};
 
-    char *at_pos = strchr(trimmed, '@');
-    if (at_pos) {
-      size_t name_len = at_pos - trimmed;
+    char *space_pos        = strchr(trimmed, ' ');
+    char *tab_pos          = strchr(trimmed, '\t');
+    char *first_whitespace = NULL;
+    if (space_pos && tab_pos) {
+      first_whitespace = (space_pos < tab_pos) ? space_pos : tab_pos;
+    } else if (space_pos) {
+      first_whitespace = space_pos;
+    } else if (tab_pos) {
+      first_whitespace = tab_pos;
+    }
+
+    if (first_whitespace) {
+      size_t name_len = first_whitespace - trimmed;
       strncpy(name, trimmed, name_len);
       name[name_len] = '\0';
-      strcpy(spec, trim_whitespace(at_pos + 1));
+      strcpy(spec, trim_whitespace(first_whitespace + 1));
     } else {
       strncpy(name, trimmed, sizeof(name) - 1);
       name[sizeof(name) - 1] = '\0';
     }
-
-    name[strcspn(name, " \t")] = '\0';
 
     if (strlen(name) == 0) continue;
 
@@ -201,39 +209,10 @@ static int install_dependency(const char *name, const char *spec) {
     return 0;
   }
 
-  char url[2048] = {0};
-
-  if (strlen(spec) > 0 && is_url(spec)) {
-    strncpy(url, spec, sizeof(url) - 1);
-  } else {
-    char *full_ref = NULL;
-
-    if (strlen(spec) > 0) {
-      full_ref = query_github_matching_ref(name, spec);
-      if (!full_ref) {
-        fprintf(stderr, "Error: ref '%s' not found for %s\n", spec, name);
-        return -1;
-      }
-    } else {
-      char *branch = query_github_default_branch(name);
-      if (!branch) {
-        fprintf(stderr, "Warning: could not determine default branch for %s, using 'main'\n", name);
-        branch = strdup("main");
-      }
-      full_ref = malloc(256);
-      if (full_ref) {
-        snprintf(full_ref, 256, "refs/heads/%s", branch);
-      }
-      free(branch);
-    }
-
-    if (!full_ref) {
-      fprintf(stderr, "Error: could not determine ref for %s\n", name);
-      return -1;
-    }
-
-    snprintf(url, sizeof(url), "https://github.com/%s/archive/%s.tar.gz", name, full_ref);
-    free(full_ref);
+  char *url = spec_to_url(name, spec);
+  if (!url) {
+    fprintf(stderr, "Error: failed to resolve spec for %s\n", name);
+    return -1;
   }
 
   printf("Installing %s from %s\n", name, url);
@@ -242,8 +221,10 @@ static int install_dependency(const char *name, const char *spec) {
 
   if (download_and_extract(url, lib_path) != 0) {
     fprintf(stderr, "Error: failed to install %s\n", name);
+    free(url);
     return -1;
   }
+  free(url);
 
   // Process .dep.chain recursively
   char dep_chain_path[PATH_MAX];
@@ -390,18 +371,26 @@ static int cmd_install(int argc, const char **argv) {
     char name[256]  = {0};
     char spec[1024] = {0};
 
-    char *at_pos = strchr(trimmed, '@');
-    if (at_pos) {
-      size_t name_len = at_pos - trimmed;
+    char *space_pos        = strchr(trimmed, ' ');
+    char *tab_pos          = strchr(trimmed, '\t');
+    char *first_whitespace = NULL;
+    if (space_pos && tab_pos) {
+      first_whitespace = (space_pos < tab_pos) ? space_pos : tab_pos;
+    } else if (space_pos) {
+      first_whitespace = space_pos;
+    } else if (tab_pos) {
+      first_whitespace = tab_pos;
+    }
+
+    if (first_whitespace) {
+      size_t name_len = first_whitespace - trimmed;
       strncpy(name, trimmed, name_len);
       name[name_len] = '\0';
-      strcpy(spec, trim_whitespace(at_pos + 1));
+      strcpy(spec, trim_whitespace(first_whitespace + 1));
     } else {
       strncpy(name, trimmed, sizeof(name) - 1);
       name[sizeof(name) - 1] = '\0';
     }
-
-    name[strcspn(name, " \t")] = '\0';
 
     if (strlen(name) == 0) continue;
 
