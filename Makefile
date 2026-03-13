@@ -86,6 +86,7 @@ lib/tidwall/json.c:
 
 dep: $(LIBS) $(OBJ)
 	${CC} ${OBJ} ${CFLAGS} ${LDFLAGS} -o $@
+	strip --strip-all $@
 
 .PHONY: clean
 clean:
