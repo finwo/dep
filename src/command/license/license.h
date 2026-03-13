@@ -4,4 +4,4 @@
 extern const unsigned char _binary_LICENSE_md_start[];
 extern const unsigned char _binary_LICENSE_md_end[];
 
-#endif // LICENSE_H
+#endif  // LICENSE_H

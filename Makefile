@@ -73,3 +73,6 @@ dep: $(LIBS) $(OBJ)
 clean:
 	rm -f $(OBJ)
 
+.PHONY: format
+format:
+	$(FIND) src/ -type f \( -name '*.c' -o -name '*.h' \) -exec clang-format -i {} +
