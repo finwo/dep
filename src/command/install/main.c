@@ -6,16 +6,14 @@
 #include <unistd.h>
 
 #include "command/command.h"
+#include "common/github-utils.h"
 #include "common/net-utils.h"
 #include "emmanuel-marty/em_inflate.h"
 #include "erkkah/naett.h"
 #include "rxi/microtar.h"
-#include "tidwall/json.h"
 
 /* Forward declarations */
-static char *query_github_default_branch(const char *full_name);
-static char *query_github_matching_ref(const char *full_name, const char *ref);
-static int   install_dependency(const char *name, const char *spec);
+static int install_dependency(const char *name, const char *spec);
 
 static int dir_exists(const char *path) {
   struct stat st;
@@ -62,13 +60,13 @@ static char *spec_to_url(const char *name, const char *spec) {
   char *full_ref = NULL;
 
   if (strlen(spec) > 0) {
-    full_ref = query_github_matching_ref(name, spec);
+    full_ref = github_matching_ref(name, spec);
     if (!full_ref) {
       fprintf(stderr, "Error: ref '%s' not found for %s\n", spec, name);
       return NULL;
     }
   } else {
-    char *branch = query_github_default_branch(name);
+    char *branch = github_default_branch(name);
     if (!branch) {
       fprintf(stderr, "Warning: could not determine default branch for %s, using 'main'\n", name);
       branch = strdup("main");
@@ -143,61 +141,6 @@ static int process_dep_file_in_dir(const char *dep_dir) {
 
   fclose(f);
   return 0;
-}
-
-static char *query_github_default_branch(const char *full_name) {
-  char url[512];
-  snprintf(url, sizeof(url), "https://api.github.com/repos/%s", full_name);
-
-  size_t size;
-  char  *response = download_url(url, &size);
-  if (!response) return NULL;
-
-  struct json root           = json_parse(response);
-  struct json default_branch = json_object_get(root, "default_branch");
-
-  char *branch = NULL;
-  if (json_exists(default_branch) && json_type(default_branch) == JSON_STRING) {
-    size_t len = json_string_length(default_branch);
-    branch     = malloc(len + 1);
-    if (branch) {
-      json_string_copy(default_branch, branch, len + 1);
-    }
-  }
-
-  free(response);
-  return branch;
-}
-
-static char *query_github_ref(const char *full_name, const char *ref_type, const char *ref) {
-  char url[512];
-  snprintf(url, sizeof(url), "https://api.github.com/repos/%s/git/ref/%s/%s", full_name, ref_type, ref);
-
-  size_t size;
-  char  *response = download_url(url, &size);
-  if (!response) return NULL;
-
-  struct json root    = json_parse(response);
-  struct json ref_obj = json_object_get(root, "ref");
-
-  char *full_ref = NULL;
-  if (json_exists(ref_obj) && json_type(ref_obj) == JSON_STRING) {
-    size_t len = json_string_length(ref_obj);
-    full_ref   = malloc(len + 1);
-    if (full_ref) {
-      json_string_copy(ref_obj, full_ref, len + 1);
-    }
-  }
-
-  free(response);
-  return full_ref;
-}
-
-static char *query_github_matching_ref(const char *full_name, const char *ref) {
-  char *full_ref = query_github_ref(full_name, "tags", ref);
-  if (full_ref) return full_ref;
-
-  return query_github_ref(full_name, "heads", ref);
 }
 
 static int install_dependency(const char *name, const char *spec) {
