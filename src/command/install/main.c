@@ -11,6 +11,11 @@
 #include "rxi/microtar.h"
 #include "tidwall/json.h"
 
+/* Forward declarations */
+static char *query_github_default_branch(const char *full_name);
+static char *query_github_matching_ref(const char *full_name, const char *ref);
+static int   install_dependency(const char *name, const char *spec);
+
 typedef struct {
   char  *data;
   size_t size;
@@ -124,6 +129,48 @@ static int mem_close(mtar_t *tar) {
 }
 
 static int naett_initialized = 0;
+
+static int process_dep_file_in_dir(const char *dep_dir) {
+  char dep_path[PATH_MAX];
+  snprintf(dep_path, sizeof(dep_path), "%s/.dep", dep_dir);
+  FILE *f = fopen(dep_path, "r");
+  if (!f) {
+    // No .dep file is not an error
+    return 0;
+  }
+
+  char line[LINE_MAX];
+  while (fgets(line, sizeof(line), f)) {
+    char *comment = strchr(line, '#');
+    if (comment) *comment = '\0';
+
+    char *trimmed = trim_whitespace(line);
+    if (strlen(trimmed) == 0) continue;
+
+    char name[256]  = {0};
+    char spec[1024] = {0};
+
+    char *at_pos = strchr(trimmed, '@');
+    if (at_pos) {
+      size_t name_len = at_pos - trimmed;
+      strncpy(name, trimmed, name_len);
+      name[name_len] = '\0';
+      strcpy(spec, trim_whitespace(at_pos + 1));
+    } else {
+      strncpy(name, trimmed, sizeof(name) - 1);
+      name[sizeof(name) - 1] = '\0';
+    }
+
+    name[strcspn(name, " \t")] = '\0';
+
+    if (strlen(name) == 0) continue;
+
+    install_dependency(name, spec);
+  }
+
+  fclose(f);
+  return 0;
+}
 
 static char *download_url(const char *url, size_t *out_size);
 
@@ -479,6 +526,12 @@ static int install_dependency(const char *name, const char *spec) {
     }
     free(overlay_url);
     // Loop continues to check for new .dep.chain
+  }
+
+  // Process .dep file in the dependency's directory
+  if (process_dep_file_in_dir(lib_path) != 0) {
+    fprintf(stderr, "Warning: failed to process .dep file for %s\n", name);
+    // Not returning error because the dependency itself installed successfully.
   }
 
   printf("Installed %s\n", name);
