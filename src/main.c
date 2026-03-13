@@ -64,14 +64,22 @@ int main(int argc, const char **argv) {
     return -1;
   }
 
-  /* Try to run command with args provided. */
-  struct cmd_struct *cmd = commands;
-  while (cmd) {
-    if (!strcmp(cmd->cmd, argv[0])) break;
-    cmd = cmd->next;
-  }
-  if (cmd) {
-    return cmd->fn(argc, argv);
-  }
+   /* Try to run command with args provided. */
+   struct cmd_struct *cmd = commands;
+   while (cmd) {
+     const char **name = cmd->name;
+     while (*name) {
+       if (!strcmp(*name, argv[0])) {
+         goto found;
+       }
+       name++;
+     }
+     cmd = cmd->next;
+   }
+   cmd = NULL;
+found:
+   if (cmd) {
+     return cmd->fn(argc, argv);
+   }
   return 0;
 }

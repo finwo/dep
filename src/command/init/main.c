@@ -52,6 +52,7 @@ void __attribute__((constructor)) cmd_init_setup(void) {
     }
     cmd->next = commands;
     cmd->fn = cmd_init;
-    cmd->cmd = "init";
+    static const char *init_names[] = { "init", NULL };
+    cmd->name = init_names;
     commands = cmd;
 }
