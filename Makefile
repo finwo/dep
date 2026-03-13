@@ -7,6 +7,7 @@ SRC:=
 INCLUDES:=
 CFLAGS:=
 LDFLAGS:=
+DESTDIR?=/usr/local
 
 SRC+=$(shell $(FIND) src/ -type f -name '*.c')
 INCLUDES+=-Isrc
@@ -87,6 +88,10 @@ lib/tidwall/json.c:
 dep: $(LIBS) $(OBJ)
 	${CC} ${OBJ} ${CFLAGS} ${LDFLAGS} -o $@
 	strip --strip-all $@
+
+.PHONY: install
+install: dep
+	install dep ${DESTDIR}/bin
 
 .PHONY: clean
 clean:
