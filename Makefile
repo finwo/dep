@@ -16,6 +16,9 @@ LIBS:=
 LIBS+=lib/cofyc/argparse
 SRC+=lib/cofyc/argparse/argparse.c
 
+LIBS+=lib/emmanuel-marty/em_inflate
+SRC+=lib/emmanuel-marty/em_inflate/lib/em_inflate.c
+
 LIBS+=lib/erkkah/naett
 SRC+=lib/erkkah/naett/naett.c
 ifeq ($(OS),Windows_NT)
@@ -32,6 +35,9 @@ endif
 
 LIBS+=lib/rxi/microtar
 SRC+=lib/rxi/microtar/src/microtar.c
+
+LIBS+=lib/tidwall/json.c
+SRC+=lib/tidwall/json.c/json.c
 
 OBJ:=$(SRC:.c=.o)
 OBJ:=$(OBJ:.cc=.o)
@@ -51,6 +57,12 @@ lib/cofyc/argparse:
 	mkdir -p lib/.dep/include/cofyc
 	ln -s ../../../cofyc/argparse/argparse.h lib/.dep/include/cofyc/argparse.h
 
+lib/emmanuel-marty/em_inflate:
+	mkdir -p lib/emmanuel-marty/em_inflate
+	curl -sL https://github.com/emmanuel-marty/em_inflate/archive/refs/heads/master.tar.gz | tar xzv --strip-components=1 -C lib/emmanuel-marty/em_inflate
+	mkdir -p lib/.dep/include/emmanuel-marty
+	ln -s ../../../emmanuel-marty/em_inflate/lib/em_inflate.h lib/.dep/include/emmanuel-marty/em_inflate.h
+
 lib/erkkah/naett:
 	mkdir -p lib/erkkah/naett
 	curl -sL https://github.com/erkkah/naett/archive/refs/heads/main.tar.gz | tar xzv --strip-components=1 -C lib/erkkah/naett
@@ -62,6 +74,12 @@ lib/rxi/microtar:
 	curl -sL https://github.com/rxi/microtar/archive/refs/heads/master.tar.gz | tar xzv --strip-components=1 -C lib/rxi/microtar
 	mkdir -p lib/.dep/include/rxi
 	ln -s ../../../rxi/microtar/src/microtar.h lib/.dep/include/rxi/microtar.h
+
+lib/tidwall/json.c:
+	mkdir -p lib/tidwall/json.c
+	curl -sL https://github.com/tidwall/json.c/archive/refs/heads/main.tar.gz | tar xzv --strip-components=1 -C lib/tidwall/json.c
+	mkdir -p lib/.dep/include/tidwall
+	ln -s ../../../tidwall/json.c/json.h lib/.dep/include/tidwall/json.h
 
 .c.o:
 	${CC} $< ${CFLAGS} -c -o $@
