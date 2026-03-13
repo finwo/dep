@@ -8,28 +8,12 @@
 
 #include "../command.h"
 #include "cofyc/argparse.h"
-
-#define REPO_DIR_DEFAULT "/.config/finwo/dep/repositories.d/"
-
-static char *get_repo_dir(void) {
-  const char *home = getenv("HOME");
-  if (!home) {
-    fprintf(stderr, "Error: HOME environment variable not set\n");
-    return NULL;
-  }
-  size_t len  = strlen(home) + strlen(REPO_DIR_DEFAULT) + 1;
-  char  *path = malloc(len);
-  if (!path) {
-    fprintf(stderr, "Error: out of memory\n");
-    return NULL;
-  }
-  snprintf(path, len, "%s%s", home, REPO_DIR_DEFAULT);
-  return path;
-}
+#include "common/fs-utils.h"
 
 static int cmd_repository_list(int argc, const char **argv);
 static int cmd_repository_add(int argc, const char **argv);
 static int cmd_repository_remove(int argc, const char **argv);
+static int cmd_repository_clean_cache(int argc, const char **argv);
 
 static const char *const usages[] = {
     "repository <subcommand> [options]",
@@ -48,9 +32,10 @@ static int cmd_repository(int argc, const char **argv) {
   // If no subcommand provided, show available subcommands
   if (argc < 1) {
     printf("Available subcommands:\n");
-    printf("  list        List the names of the repositories\n");
-    printf("  add         Add a repository: add <name> <url>\n");
-    printf("  remove      Remove a repository: remove <name>\n");
+    printf("  list          List the names of the repositories\n");
+    printf("  add           Add a repository: add <name> <url>\n");
+    printf("  remove        Remove a repository: remove <name>\n");
+    printf("  clean-cache   Remove all cached manifest files\n");
     return 0;
   }
 
@@ -61,6 +46,8 @@ static int cmd_repository(int argc, const char **argv) {
     return cmd_repository_add(argc - 1, argv + 1);
   } else if (!strcmp(argv[0], "remove")) {
     return cmd_repository_remove(argc - 1, argv + 1);
+  } else if (!strcmp(argv[0], "clean-cache")) {
+    return cmd_repository_clean_cache(argc - 1, argv + 1);
   } else {
     fprintf(stderr, "Error: unknown subcommand '%s'\n", argv[0]);
     return 1;
@@ -269,6 +256,45 @@ static int cmd_repository_remove(int argc, const char **argv) {
     printf("Repository '%s' removed.\n", name);
   }
 
+  return 0;
+}
+
+static int cmd_repository_clean_cache(int argc, const char **argv) {
+  (void)argc;
+  (void)argv;
+
+  char *cache_dir = get_cache_dir();
+  if (!cache_dir) {
+    return 1;
+  }
+
+  DIR *dir = opendir(cache_dir);
+  if (!dir) {
+    free(cache_dir);
+    return 0;
+  }
+
+  struct dirent *entry;
+  int            removed = 0;
+
+  while ((entry = readdir(dir)) != NULL) {
+    if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) continue;
+
+    char filepath[PATH_MAX];
+    snprintf(filepath, sizeof(filepath), "%s%s", cache_dir, entry->d_name);
+
+    struct stat st;
+    if (stat(filepath, &st) < 0 || !S_ISREG(st.st_mode)) continue;
+
+    if (remove(filepath) == 0) {
+      removed++;
+    }
+  }
+
+  closedir(dir);
+  free(cache_dir);
+
+  printf("Removed %d cached manifest file%s.\n", removed, removed == 1 ? "" : "s");
   return 0;
 }
 

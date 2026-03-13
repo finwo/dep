@@ -9,44 +9,11 @@
 
 #include "cofyc/argparse.h"
 #include "command/command.h"
+#include "common/fs-utils.h"
 #include "common/github-utils.h"
 #include "common/net-utils.h"
 
-#define REPO_DIR_DEFAULT      "/.config/finwo/dep/repositories.d/"
-#define CACHE_DIR_DEFAULT     "/.config/finwo/dep/repositories.cache/"
 #define CACHE_MAX_AGE_SECONDS (7 * 24 * 60 * 60)
-
-static char *get_repo_dir(void) {
-  const char *home = getenv("HOME");
-  if (!home) {
-    fprintf(stderr, "Error: HOME environment variable not set\n");
-    return NULL;
-  }
-  size_t len  = strlen(home) + strlen(REPO_DIR_DEFAULT) + 1;
-  char  *path = malloc(len);
-  if (!path) {
-    fprintf(stderr, "Error: out of memory\n");
-    return NULL;
-  }
-  snprintf(path, len, "%s%s", home, REPO_DIR_DEFAULT);
-  return path;
-}
-
-static char *get_cache_dir(void) {
-  const char *home = getenv("HOME");
-  if (!home) {
-    fprintf(stderr, "Error: HOME environment variable not set\n");
-    return NULL;
-  }
-  size_t len  = strlen(home) + strlen(CACHE_DIR_DEFAULT) + 1;
-  char  *path = malloc(len);
-  if (!path) {
-    fprintf(stderr, "Error: out of memory\n");
-    return NULL;
-  }
-  snprintf(path, len, "%s%s", home, CACHE_DIR_DEFAULT);
-  return path;
-}
 
 static unsigned long hash_string(const char *str) {
   unsigned long hash = 5381;
@@ -70,38 +37,6 @@ static int is_cache_outdated(const char *cache_path) {
   time_t now      = time(NULL);
   time_t file_age = now - st.st_mtime;
   return file_age > CACHE_MAX_AGE_SECONDS;
-}
-
-static int mkdir_recursive(const char *path) {
-  char   tmp[PATH_MAX];
-  char  *p = NULL;
-  size_t len;
-
-  snprintf(tmp, sizeof(tmp), "%s", path);
-  len = strlen(tmp);
-  if (tmp[len - 1] == '/') {
-    tmp[len - 1] = '\0';
-  }
-
-  for (p = tmp + 1; *p; p++) {
-    if (*p == '/') {
-      *p = '\0';
-      mkdir(tmp, 0755);
-      *p = '/';
-    }
-  }
-  return mkdir(tmp, 0755);
-}
-
-static char *trim_whitespace(char *str) {
-  while (*str == ' ' || *str == '\t' || *str == '\n' || *str == '\r') str++;
-  if (*str == '\0') return str;
-  char *end = str + strlen(str) - 1;
-  while (end > str && (*end == ' ' || *end == '\t' || *end == '\n' || *end == '\r')) {
-    *end = '\0';
-    end--;
-  }
-  return str;
 }
 
 static int extract_version_from_depname(const char *depname_with_version, char *depname, char *version,
@@ -456,7 +391,7 @@ void __attribute__((constructor)) cmd_add_setup(void) {
   }
   cmd->next                      = commands;
   cmd->fn                        = cmd_add;
-  static const char *add_names[] = {"add", NULL};
+  static const char *add_names[] = {"add", "a", NULL};
   cmd->name                      = add_names;
   commands                       = cmd;
 }

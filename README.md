@@ -15,10 +15,10 @@ Global options:
 Commands:
   a(dd)           Add a new dependency to the project
   i(nstall)       Install all the project's dependencies
-  i(nit)          Initialize a new project with a .dep file
-  l(icense)       Show license information
+  init            Initialize a new project with a .dep file
+  license         Show license information
   r(epo(sitory))  Repository management
-  h(elp) [topic]  Show this help or the top-level info about a command
+  help [topic]    Show this help or the top-level info about a command
 
 Help topics:
   global          This help text
@@ -119,6 +119,12 @@ To remove a repository:
 
 ```sh
 dep repository remove myorg
+```
+
+To clean the cache of downloaded repository manifests:
+
+```sh
+dep repository clean-cache
 ```
 
 Creating Repositories
