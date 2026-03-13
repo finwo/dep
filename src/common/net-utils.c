@@ -242,6 +242,12 @@ int download_and_extract(const char *url, const char *dest_dir) {
         *last_slash = '/';
       }
 
+      // Skip if file already exists
+      if (access(full_path, F_OK) == 0) {
+        mtar_next(&tar);
+        continue;
+      }
+
       FILE *f = fopen(full_path, "wb");
       if (!f) {
         fprintf(stderr, "Error: could not create file %s\n", full_path);
