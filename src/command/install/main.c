@@ -534,6 +534,53 @@ static int install_dependency(const char *name, const char *spec) {
     // Not returning error because the dependency itself installed successfully.
   }
 
+  // Handle config.mk: append dependency's config.mk to lib/.deb/config.mk
+  char deb_dir[PATH_MAX];
+  snprintf(deb_dir, sizeof(deb_dir), "lib/.deb");
+  mkdir_recursive(deb_dir);
+
+  char dep_config_path[PATH_MAX];
+  snprintf(dep_config_path, sizeof(dep_config_path), "%s/config.mk", lib_path);
+
+  char deb_config_path[PATH_MAX];
+  snprintf(deb_config_path, sizeof(deb_config_path), "lib/.deb/config.mk");
+
+  FILE *dep_config = fopen(dep_config_path, "r");
+  if (dep_config) {
+    FILE *deb_config = fopen(deb_config_path, "a");
+    if (deb_config) {
+      char line[LINE_MAX];
+      while (fgets(line, sizeof(line), dep_config)) {
+        // Replace __DIRNAME and {__DIRNAME__} with the dependency's path (lib_path)
+        char  modified[LINE_MAX * 2];  // enough space for replacements
+        char *src = line;
+        char *dst = modified;
+        while (*src) {
+          if (strncmp(src, "__DIRNAME", 9) == 0) {
+            strcpy(dst, lib_path);
+            dst += strlen(lib_path);
+            src += 9;
+          } else if (strncmp(src, "{__DIRNAME__}", 13) == 0) {
+            strcpy(dst, lib_path);
+            dst += strlen(lib_path);
+            src += 13;
+          } else {
+            *dst++ = *src++;
+          }
+        }
+        *dst = '\0';
+        fputs(modified, deb_config);
+      }
+      // Ensure a newline at end of appended content if not already ending with newline
+      // (optional, but we can add a newline to separate entries)
+      fputc('\n', deb_config);
+      fclose(deb_config);
+    } else {
+      fprintf(stderr, "Warning: could not open %s for appending\n", deb_config_path);
+    }
+    fclose(dep_config);
+  }
+
   printf("Installed %s\n", name);
   return 0;
 }
