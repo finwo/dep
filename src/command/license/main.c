@@ -15,10 +15,10 @@ int cmd_license(int argc, const char **argv) {
 }
 
 void __attribute__((constructor)) cmd_license_setup() {
-  struct cmd_struct *cmd = calloc(1, sizeof(struct cmd_struct));
-  cmd->next              = commands;
-  cmd->fn                = cmd_license;
-  static const char *license_names[] = { "license", NULL };
-  cmd->name = license_names;
-  commands               = cmd;
+  struct cmd_struct *cmd             = calloc(1, sizeof(struct cmd_struct));
+  cmd->next                          = commands;
+  cmd->fn                            = cmd_license;
+  static const char *license_names[] = {"license", NULL};
+  cmd->name                          = license_names;
+  commands                           = cmd;
 }

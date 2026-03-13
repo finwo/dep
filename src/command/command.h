@@ -1,5 +1,5 @@
 struct cmd_struct {
-  void *next;
+  void        *next;
   const char **name;
   int (*fn)(int, const char **);
 };
