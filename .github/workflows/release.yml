@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - '*'
+  repository_dispatch:
+    types:
+      - release-edge
 
 jobs:
   build:
