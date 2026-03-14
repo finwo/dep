@@ -168,7 +168,7 @@ int download_and_extract(const char *url, const char *dest_dir) {
     return -1;
   }
 
-  size_t max_tar_size = gzip_size * 10;
+  size_t max_tar_size = gzip_size * 15;
   char  *tar_data     = malloc(max_tar_size);
   if (!tar_data) {
     free(gzip_data);
@@ -178,9 +178,14 @@ int download_and_extract(const char *url, const char *dest_dir) {
   size_t tar_size = em_inflate(gzip_data, gzip_size, (unsigned char *)tar_data, max_tar_size);
   free(gzip_data);
 
-  if (tar_size == (size_t)-1 || tar_size == 0) {
+  if (tar_size == (size_t)-1) {
     free(tar_data);
-    fprintf(stderr, "Error: failed to decompress gzip data\n");
+    fprintf(stderr, "Error: decompression failed (invalid or corrupted gzip data)\n");
+    return -1;
+  }
+  if (tar_size == 0) {
+    free(tar_data);
+    fprintf(stderr, "Error: decompressed to empty (likely wrong format or truncated data)\n");
     return -1;
   }
 
