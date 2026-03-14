@@ -1,6 +1,8 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -231,20 +233,6 @@ static int process_dep_file_in_dir(const char *dep_dir) {
 }
 
 static int execute_postinstall_hook(const char *dep_dir) {
-  char hook_path[PATH_MAX];
-  snprintf(hook_path, sizeof(hook_path), "%s/.dep.hook.postinstall", dep_dir);
-
-  struct stat st;
-  if (stat(hook_path, &st) != 0) {
-    return 0;
-  }
-
-  int exec_bits = S_IXUSR | S_IXGRP | S_IXOTH;
-  if (!(st.st_mode & exec_bits)) {
-    fprintf(stderr, "Warning: %s exists but is not executable, skipping\n", hook_path);
-    return 0;
-  }
-
   char cwd[PATH_MAX];
   if (getcwd(cwd, sizeof(cwd)) == NULL) {
     fprintf(stderr, "Error: failed to get current working directory\n");
@@ -256,10 +244,34 @@ static int execute_postinstall_hook(const char *dep_dir) {
     return -1;
   }
 
+  char hook_path[PATH_MAX];
+  snprintf(hook_path, sizeof(hook_path), "./.dep.hook.postinstall");
+
+  struct stat st;
+  if (stat(hook_path, &st) != 0) {
+    chdir(cwd);
+    return 0;
+  }
+
+  int exec_bits = S_IXUSR | S_IXGRP | S_IXOTH;
+  if (!(st.st_mode & exec_bits)) {
+    fprintf(stderr, "Warning: %s is not executable, making executable...\n", hook_path);
+    if (chmod(hook_path, st.st_mode | exec_bits) != 0) {
+      fprintf(stderr, "Error: failed to make hook executable\n");
+      chdir(cwd);
+      return -1;
+    }
+    if (stat(hook_path, &st) != 0) {
+      chdir(cwd);
+      return 0;
+    }
+  }
+
   pid_t pid = fork();
   if (pid == 0) {
     char *const argv[] = {hook_path, NULL};
     execve(hook_path, argv, environ);
+    fprintf(stderr, "Error: execve failed: errno=%d\n", errno);
     _exit(127);
   } else if (pid < 0) {
     chdir(cwd);
@@ -373,21 +385,21 @@ static int install_dependency(const char *name, const char *spec) {
     return -1;
   }
 
-  // Handle config.mk: append dependency's config.mk to lib/.deb/config.mk
-  char deb_dir[PATH_MAX];
-  snprintf(deb_dir, sizeof(deb_dir), "lib/.deb");
-  mkdir_recursive(deb_dir);
+  // Handle config.mk: append dependency's config.mk to lib/.dep/config.mk
+  char dep_dir[PATH_MAX];
+  snprintf(dep_dir, sizeof(dep_dir), "lib/.dep");
+  mkdir_recursive(dep_dir);
 
-  char dep_config_path[PATH_MAX];
-  snprintf(dep_config_path, sizeof(dep_config_path), "%s/config.mk", lib_path);
+  char src_config_path[PATH_MAX];
+  snprintf(src_config_path, sizeof(src_config_path), "%s/config.mk", lib_path);
 
-  char deb_config_path[PATH_MAX];
-  snprintf(deb_config_path, sizeof(deb_config_path), "lib/.deb/config.mk");
+  char dst_config_path[PATH_MAX];
+  snprintf(dst_config_path, sizeof(dst_config_path), "lib/.dep/config.mk");
 
-  FILE *dep_config = fopen(dep_config_path, "r");
+  FILE *dep_config = fopen(src_config_path, "r");
   if (dep_config) {
-    FILE *deb_config = fopen(deb_config_path, "a");
-    if (deb_config) {
+    FILE *dst_config = fopen(dst_config_path, "a");
+    if (dst_config) {
       char line[LINE_MAX];
       while (fgets(line, sizeof(line), dep_config)) {
         // Replace __DIRNAME and {__DIRNAME__} with the dependency's path (lib_path)
@@ -408,14 +420,14 @@ static int install_dependency(const char *name, const char *spec) {
           }
         }
         *dst = '\0';
-        fputs(modified, deb_config);
+        fputs(modified, dst_config);
       }
       // Ensure a newline at end of appended content if not already ending with newline
       // (optional, but we can add a newline to separate entries)
-      fputc('\n', deb_config);
-      fclose(deb_config);
+      fputc('\n', dst_config);
+      fclose(dst_config);
     } else {
-      fprintf(stderr, "Warning: could not open %s for appending\n", deb_config_path);
+      fprintf(stderr, "Warning: could not open %s for appending\n", dst_config_path);
     }
     fclose(dep_config);
   }
