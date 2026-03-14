@@ -442,5 +442,22 @@ void __attribute__((constructor)) cmd_install_setup(void) {
   cmd->fn                            = cmd_install;
   static const char *install_names[] = {"install", "i", NULL};
   cmd->name                          = install_names;
-  commands                           = cmd;
+  cmd->display                       = "i(nstall)";
+  cmd->description                   = "Install all the project's dependencies";
+  cmd->help_text =
+      "dep install - Install all the project's dependencies\n"
+      "\n"
+      "Usage:\n"
+      "  dep install\n"
+      "\n"
+      "Description:\n"
+      "  Install all dependencies listed in the .dep file in the current directory.\n"
+      "\n"
+      "  Dependencies are installed to the lib/ directory by default.\n"
+      "\n"
+      "  Each dependency is downloaded and extracted to lib/<owner>/<name>/.\n"
+      "\n"
+      "  If a dependency itself has dependencies listed in its own .dep file,\n"
+      "  those will be installed recursively.\n";
+  commands = cmd;
 }

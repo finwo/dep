@@ -393,5 +393,28 @@ void __attribute__((constructor)) cmd_add_setup(void) {
   cmd->fn                        = cmd_add;
   static const char *add_names[] = {"add", "a", NULL};
   cmd->name                      = add_names;
-  commands                       = cmd;
+  cmd->display                   = "a(dd)";
+  cmd->description               = "Add a new dependency to the project";
+  cmd->help_text =
+      "dep add - Add a new dependency to the project\n"
+      "\n"
+      "Usage:\n"
+      "  dep add <name>\n"
+      "  dep add <name> <version>\n"
+      "  dep add <name> <url>\n"
+      "\n"
+      "Description:\n"
+      "  Add a package to the project's .dep file.\n"
+      "\n"
+      "  If a version is not specified, the latest version from the repository\n"
+      "  will be used, or the default branch from GitHub.\n"
+      "\n"
+      "  You can also add a dependency with a direct URL.\n"
+      "\n"
+      "Examples:\n"
+      "  dep add finwo/palloc           # Latest from repo or GitHub main branch\n"
+      "  dep add finwo/palloc edge     # Specific version/branch\n"
+      "  dep add finwo/palloc v1.0.0   # Specific tag\n"
+      "  dep add mylib https://example.com/mylib.tar.gz\n";
+  commands = cmd;
 }

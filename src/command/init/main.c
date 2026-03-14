@@ -54,5 +54,21 @@ void __attribute__((constructor)) cmd_init_setup(void) {
   cmd->fn                         = cmd_init;
   static const char *init_names[] = {"init", NULL};
   cmd->name                       = init_names;
-  commands                        = cmd;
+  cmd->display                    = "init";
+  cmd->description                = "Initialize a new project with a .dep file";
+  cmd->help_text =
+      "dep init - Initialize a new project with a .dep file\n"
+      "\n"
+      "Usage:\n"
+      "  dep init\n"
+      "  dep init <directory>\n"
+      "\n"
+      "Description:\n"
+      "  Create an empty .dep file in the current directory or a specified directory.\n"
+      "  The .dep file is used to list dependencies for the project.\n"
+      "\n"
+      "Examples:\n"
+      "  dep init              # Create .dep in current directory\n"
+      "  dep init /path/to/project  # Create .dep in specified directory\n";
+  commands = cmd;
 }

@@ -20,5 +20,15 @@ void __attribute__((constructor)) cmd_license_setup() {
   cmd->fn                            = cmd_license;
   static const char *license_names[] = {"license", NULL};
   cmd->name                          = license_names;
-  commands                           = cmd;
+  cmd->display                       = "license";
+  cmd->description                   = "Show license information";
+  cmd->help_text =
+      "dep license - Show license information\n"
+      "\n"
+      "Usage:\n"
+      "  dep license\n"
+      "\n"
+      "Description:\n"
+      "  Display the license information for dep.\n";
+  commands = cmd;
 }

@@ -309,5 +309,31 @@ void __attribute__((constructor)) cmd_repository_setup(void) {
   cmd->fn                               = cmd_repository;
   static const char *repository_names[] = {"repository", "repo", "r", NULL};
   cmd->name                             = repository_names;
-  commands                              = cmd;
+  cmd->display                          = "r(epo(sitory))";
+  cmd->description                      = "Repository management";
+  cmd->help_text =
+      "dep repository - Repository management\n"
+      "\n"
+      "Usage:\n"
+      "  dep repository list\n"
+      "  dep repository add <name> <url>\n"
+      "  dep repository remove <name>\n"
+      "  dep repository clean-cache\n"
+      "\n"
+      "Description:\n"
+      "  dep can use custom repositories to discover packages. Repositories are\n"
+      "  configured in ~/.config/finwo/dep/repositories.d/.\n"
+      "\n"
+      "Subcommands:\n"
+      "  list          List the names of the configured repositories\n"
+      "  add           Add a repository: dep repository add <name> <url>\n"
+      "  remove        Remove a repository: dep repository remove <name>\n"
+      "  clean-cache   Remove all cached manifest files\n"
+      "\n"
+      "Examples:\n"
+      "  dep repository add myorg https://example.com/path/to/manifest\n"
+      "  dep repository list\n"
+      "  dep repository remove myorg\n"
+      "  dep repository clean-cache\n";
+  commands = cmd;
 }

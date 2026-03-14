@@ -11,45 +11,35 @@
 
 struct cmd_struct *commands = NULL;
 
+static void print_global_usage(void) {
+  printf("Usage: dep [global options] <command> [command options]\n");
+  printf("\n");
+  printf("Global options:\n");
+  printf("  n/a\n");
+  printf("\n");
+  printf("Commands:\n");
+
+  struct cmd_struct *cmd = commands;
+  while (cmd) {
+    printf("  %-16s %s\n", cmd->display ? cmd->display : cmd->name[0], cmd->description ? cmd->description : "");
+    cmd = cmd->next;
+  }
+
+  printf("\n");
+  printf("Help topics:\n");
+  printf("  global          This help text\n");
+
+  cmd = commands;
+  while (cmd) {
+    printf("  %-16s More detailed explanation on the %s command\n", cmd->name[0], cmd->name[0]);
+    cmd = cmd->next;
+  }
+}
+
 static const char *const usages[] = {
-    "subcommands [options] [cmd] [args]",
+    "dep [global options] <command> [command options]",
     NULL,
 };
-
-int cmd_foo(int argc, const char **argv) {
-  printf("executing subcommand foo\n");
-  printf("argc: %d\n", argc);
-  for (int i = 0; i < argc; i++) {
-    printf("argv[%d]: %s\n", i, *(argv + i));
-  }
-  int                    force     = 0;
-  int                    test      = 0;
-  const char            *path      = NULL;
-  struct argparse_option options[] = {
-      OPT_HELP(),
-      OPT_BOOLEAN('f', "force", &force, "force to do", NULL, 0, 0),
-      OPT_BOOLEAN('t', "test", &test, "test only", NULL, 0, 0),
-      OPT_STRING('p', "path", &path, "path to read", NULL, 0, 0),
-      OPT_END(),
-  };
-  struct argparse argparse;
-  argparse_init(&argparse, options, usages, 0);
-  argc = argparse_parse(&argparse, argc, argv);
-  printf("after argparse_parse:\n");
-  printf("argc: %d\n", argc);
-  for (int i = 0; i < argc; i++) {
-    printf("argv[%d]: %s\n", i, *(argv + i));
-  }
-  return 0;
-}
-
-int cmd_bar(int argc, const char **argv) {
-  printf("executing subcommand bar\n");
-  for (int i = 0; i < argc; i++) {
-    printf("argv[%d]: %s\n", i, *(argv + i));
-  }
-  return 0;
-}
 
 int main(int argc, const char **argv) {
   struct argparse        argparse;
@@ -60,8 +50,8 @@ int main(int argc, const char **argv) {
   argparse_init(&argparse, options, usages, ARGPARSE_STOP_AT_NON_OPTION);
   argc = argparse_parse(&argparse, argc, argv);
   if (argc < 1) {
-    argparse_usage(&argparse);
-    return -1;
+    print_global_usage();
+    return 0;
   }
 
   /* Try to run command with args provided. */
