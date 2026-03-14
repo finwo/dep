@@ -27,9 +27,8 @@ runs:
 
         DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/${ARTIFACT}"
 
-        if curl -sI "$DOWNLOAD_URL" | head -1 | grep -q "200"; then
-          echo "Downloading $ARTIFACT from release $TAG"
-          curl -sL "$DOWNLOAD_URL" -o "${GITHUB_ACTION_PATH}/dist/dep"
+        if curl -sfL "$DOWNLOAD_URL" -o "${GITHUB_ACTION_PATH}/dist/dep"; then
+          echo "Downloaded $ARTIFACT from release $TAG"
           echo "status=success" >> $GITHUB_OUTPUT
         else
           echo "Prebuilt binary not found for $ARTIFACT in release $TAG, will build from source"
