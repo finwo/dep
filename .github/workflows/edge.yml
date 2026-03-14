@@ -6,6 +6,9 @@ on:
       - main
       - rewrite-c
 
+permissions:
+  contents: write
+
 jobs:
   edge:
     runs-on: ubuntu-latest
