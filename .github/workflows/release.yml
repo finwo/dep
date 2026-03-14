@@ -4,19 +4,18 @@ on:
   push:
     tags:
       - '*'
-  repository_dispatch:
-    types:
-      - release-edge
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runs-on }}
     strategy:
       matrix:
         include:
-          - os: linux
-            arch: x86_64
-          - os: linux
+          - runs-on: ubuntu-24.04
+            os: linux
+            arch: x64
+          - runs-on: ubuntu-24.04-arm
+            os: linux
             arch: arm64
 
     steps:
