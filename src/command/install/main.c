@@ -5,10 +5,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#ifndef LINE_MAX
-#define LINE_MAX 4096
-#endif
-
 #include "command/command.h"
 #include "common/github-utils.h"
 #include "common/net-utils.h"
@@ -38,19 +34,11 @@ static int mkdir_recursive(const char *path) {
   for (p = tmp + 1; *p; p++) {
     if (*p == '/') {
       *p = '\0';
-#ifdef _WIN32
-      mkdir(tmp);
-#else
       mkdir(tmp, 0755);
-#endif
       *p = '/';
     }
   }
-#ifdef _WIN32
-  return mkdir(tmp);
-#else
   return mkdir(tmp, 0755);
-#endif
 }
 
 static char *trim_whitespace(char *str) {
@@ -387,11 +375,7 @@ static int cmd_install(int argc, const char **argv) {
   }
 
   if (!dir_exists("lib")) {
-#ifdef _WIN32
-    if (mkdir("lib") != 0) {
-#else
     if (mkdir("lib", 0755) != 0) {
-#endif
       fprintf(stderr, "Error: could not create lib directory\n");
       fclose(f);
       return 1;

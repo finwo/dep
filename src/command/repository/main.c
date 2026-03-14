@@ -6,10 +6,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#ifndef LINE_MAX
-#define LINE_MAX 4096
-#endif
-
 #include "../command.h"
 #include "cofyc/argparse.h"
 #include "common/fs-utils.h"

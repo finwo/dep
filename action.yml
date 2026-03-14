@@ -12,9 +12,6 @@ runs:
         ARCH=$(echo "${{ runner.arch }}" | tr '[:upper:]' '[:lower:]')
 
         ARTIFACT_NAME="dep-${OS}-${ARCH}"
-        if [ "$OS" = "windows" ]; then
-          ARTIFACT_NAME="${ARTIFACT_NAME}.exe"
-        fi
 
         echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
 
@@ -44,9 +41,6 @@ runs:
         if [ -n "$DOWNLOAD_URL" ]; then
           echo "Downloading $ARTIFACT from release $TAG"
           curl -sL "$DOWNLOAD_URL" -o "${GITHUB_ACTION_PATH}/dist/dep"
-          if [ "$ARTIFACT" = "dep-windows-x86_64.exe" ]; then
-            mv "${GITHUB_ACTION_PATH}/dist/dep" "${GITHUB_ACTION_PATH}/dist/dep.exe"
-          fi
           echo "status=success" >> $GITHUB_OUTPUT
         else
           echo "Prebuilt binary not found for $ARTIFACT in release $TAG, will build from source"
@@ -59,11 +53,6 @@ runs:
       run: |
         echo "Building dep from source..."
 
-        if [ "${{ runner.os }}" = "Windows" ]; then
-          echo "Windows source build not yet implemented, please use a released tag"
-          exit 1
-        fi
-
         cd "$GITHUB_ACTION_PATH"
         make clean || true
         make dep
@@ -73,10 +62,7 @@ runs:
 
     - name: Make executable
       shell: bash
-      run: |
-        if [ "${{ runner.os }}" != "Windows" ]; then
-          chmod +x "${GITHUB_ACTION_PATH}/dist/dep"
-        fi
+      run: chmod +x "${GITHUB_ACTION_PATH}/dist/dep"
 
     - name: Extend executable path
       shell: bash
