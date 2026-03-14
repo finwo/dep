@@ -1,15 +1,6 @@
 name: Setup DEP package manager
 description: Installs the DEP package manager into the runner
 
-outputs:
-  artifact-url:
-    description: "URL of the artifact from this action's release"
-    value: ${{ format('https://github.com/{0}/releases/download/{1}/dep-{2}-{3}.zip',
-                     'finwo/dep',
-                     replace(github.action_ref, '^refs/tags/', ''),
-                     runner.os,
-                     runner.arch) }}
-
 runs:
   using: composite
   steps:
@@ -28,15 +19,13 @@ runs:
       id: download
       shell: bash
       run: |
+        TAG="edge"
+        REPO="finwo/dep"
         ARTIFACT="${{ steps.platform.outputs.artifact_name }}"
-        TAG="${{ replace(github.action_ref, '^refs/tags/', '') }}"
-        if [ -z "$TAG" ]; then
-          TAG="main"
-        fi
 
         mkdir -p "${GITHUB_ACTION_PATH}/dist"
 
-        DOWNLOAD_URL="https://github.com/finwo/dep/releases/download/${TAG}/${ARTIFACT}"
+        DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/${ARTIFACT}"
 
         if curl -sI "$DOWNLOAD_URL" | head -1 | grep -q "200"; then
           echo "Downloading $ARTIFACT from release $TAG"
