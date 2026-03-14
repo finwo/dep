@@ -1,4 +1,3 @@
-/bak/
-/util/
 /lib/
-node_modules/
+*.o
+/dep

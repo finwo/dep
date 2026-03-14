@@ -1,0 +1,34 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "command/command.h"
+#include "license.h"
+
+int cmd_license(int argc, const char **argv) {
+  (void)argc;
+  (void)argv;
+  const unsigned char *start = _binary_LICENSE_md_start;
+  const unsigned char *end   = _binary_LICENSE_md_end;
+  size_t               len   = end - start;
+  fwrite(start, 1, len, stdout);
+  return 0;
+}
+
+void __attribute__((constructor)) cmd_license_setup() {
+  struct cmd_struct *cmd             = calloc(1, sizeof(struct cmd_struct));
+  cmd->next                          = commands;
+  cmd->fn                            = cmd_license;
+  static const char *license_names[] = {"license", NULL};
+  cmd->name                          = license_names;
+  cmd->display                       = "license";
+  cmd->description                   = "Show license information";
+  cmd->help_text =
+      "dep license - Show license information\n"
+      "\n"
+      "Usage:\n"
+      "  dep license\n"
+      "\n"
+      "Description:\n"
+      "  Display the license information for dep.\n";
+  commands = cmd;
+}
