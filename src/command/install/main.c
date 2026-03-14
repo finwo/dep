@@ -1,8 +1,13 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "command/command.h"
@@ -172,6 +177,9 @@ static int process_dep_export_file(const char *dep_dir, const char *name) {
   return 0;
 }
 
+static int process_dep_file_in_dir(const char *dep_dir);
+static int execute_postinstall_hook(const char *dep_dir);
+
 static int process_dep_file_in_dir(const char *dep_dir) {
   char dep_path[PATH_MAX];
   snprintf(dep_path, sizeof(dep_path), "%s/.dep", dep_dir);
@@ -220,6 +228,57 @@ static int process_dep_file_in_dir(const char *dep_dir) {
 
   fclose(f);
   return 0;
+}
+
+static int execute_postinstall_hook(const char *dep_dir) {
+  char hook_path[PATH_MAX];
+  snprintf(hook_path, sizeof(hook_path), "%s/.dep.hook.postinstall", dep_dir);
+
+  struct stat st;
+  if (stat(hook_path, &st) != 0) {
+    return 0;
+  }
+
+  int exec_bits = S_IXUSR | S_IXGRP | S_IXOTH;
+  if (!(st.st_mode & exec_bits)) {
+    fprintf(stderr, "Warning: %s exists but is not executable, skipping\n", hook_path);
+    return 0;
+  }
+
+  char cwd[PATH_MAX];
+  if (getcwd(cwd, sizeof(cwd)) == NULL) {
+    fprintf(stderr, "Error: failed to get current working directory\n");
+    return -1;
+  }
+
+  if (chdir(dep_dir) != 0) {
+    fprintf(stderr, "Error: failed to change to dependency directory\n");
+    return -1;
+  }
+
+  pid_t pid = fork();
+  if (pid == 0) {
+    char *const argv[] = {hook_path, NULL};
+    execve(hook_path, argv, environ);
+    _exit(127);
+  } else if (pid < 0) {
+    chdir(cwd);
+    fprintf(stderr, "Error: failed to fork for postinstall hook\n");
+    return -1;
+  }
+
+  int status;
+  waitpid(pid, &status, 0);
+
+  chdir(cwd);
+
+  if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+    printf("Executed postinstall hook for %s\n", dep_dir);
+    return 0;
+  } else {
+    fprintf(stderr, "Error: postinstall hook failed with exit code %d\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+    return -1;
+  }
 }
 
 static int install_dependency(const char *name, const char *spec) {
@@ -306,6 +365,12 @@ static int install_dependency(const char *name, const char *spec) {
   if (process_dep_file_in_dir(lib_path) != 0) {
     fprintf(stderr, "Warning: failed to process .dep file for %s\n", name);
     // Not returning error because the dependency itself installed successfully.
+  }
+
+  // Execute postinstall hook if present
+  if (execute_postinstall_hook(lib_path) != 0) {
+    fprintf(stderr, "Error: postinstall hook failed for %s\n", name);
+    return -1;
   }
 
   // Handle config.mk: append dependency's config.mk to lib/.deb/config.mk
