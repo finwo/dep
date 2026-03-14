@@ -459,6 +459,20 @@ static int cmd_install(int argc, const char **argv) {
     }
   }
 
+  char dep_dir[PATH_MAX];
+  snprintf(dep_dir, sizeof(dep_dir), "lib/.dep");
+  mkdir_recursive(dep_dir);
+
+  char config_mk_path[PATH_MAX];
+  snprintf(config_mk_path, sizeof(config_mk_path), "%s/config.mk", dep_dir);
+  FILE *config_mk = fopen(config_mk_path, "w");
+  if (config_mk) {
+    fputs("CFLAGS+=-Ilib/.dep/include\n", config_mk);
+    fclose(config_mk);
+  } else {
+    fprintf(stderr, "Warning: could not create %s\n", config_mk_path);
+  }
+
   char line[LINE_MAX];
   int  has_deps = 0;
 
