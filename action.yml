@@ -35,7 +35,7 @@ runs:
 
         mkdir -p "${GITHUB_ACTION_PATH}/dist"
 
-        RESPONSE=$(curl -sL "https://api.github.com/repos/${{ github.action_repository }}/releases/tags/$TAG")
+        RESPONSE=$(curl -sL "https://api.github.com/repos/finwo/dep/releases/tags/$TAG")
         DOWNLOAD_URL=$(echo "$RESPONSE" | grep -o '"browser_download_url": *"[^"]*'"$ARTIFACT"'[^"]*"' | sed 's/.*"browser_download_url": *"\([^"]*\)".*/\1/')
 
         if [ -n "$DOWNLOAD_URL" ]; then
