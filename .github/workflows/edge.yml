@@ -26,5 +26,15 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add action.yml
           git commit -m "Release: update edge tag to edge" || echo "No changes to commit"
+          git push origin HEAD
           git tag -f edge
           git push -f origin edge
+
+      - name: Trigger release
+        run: |
+          sleep 1
+          curl -X POST https://api.github.com/repos/${{ github.repository }}/dispatches \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"event_type": "release-edge"}'
