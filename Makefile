@@ -3,12 +3,9 @@ CC?=clang
 FIND=$(shell which gfind find | head -1)
 OBJCOPY?=objcopy
 
-UNAME_P:=$(shell uname -p)
 UNAME_M:=$(shell uname -m)
 ARCH_TARGET?=$(shell echo $(UNAME_M) | sed -e 's/x86_64/elf64-x86-64/' -e 's/arm64/elf64-littleaarch64/' -e 's/aarch64/elf64-littleaarch64/')
 ARCH_BIN?=$(shell echo $(UNAME_M) | sed -e 's/x86_64/i386/' -e 's/arm64/aarch64/' -e 's/aarch64/aarch64/')
-
-EXE_EXT?=
 
 SRC:=
 INCLUDES:=
@@ -19,6 +16,7 @@ DESTDIR?=/usr/local
 SRC+=$(shell $(FIND) src/ -type f -name '*.c')
 INCLUDES+=-Isrc
 INCLUDES+=-Ilib/.dep/include
+
 LIBS:=
 
 LIBS+=lib/cofyc/argparse
@@ -29,17 +27,7 @@ SRC+=lib/emmanuel-marty/em_inflate/lib/em_inflate.c
 
 LIBS+=lib/erkkah/naett
 SRC+=lib/erkkah/naett/naett.c
-ifeq ($(OS),Windows_NT)
-  LDFLAGS+=-lwinhttp
-else
-  UNAME_S := $(shell uname -s)
-  ifeq ($(UNAME_S),Linux)
-    LDFLAGS+=-lcurl -lpthread
-  endif
-  ifeq ($(UNAME_S),Darwin)
-    LDFLAGS+=-framework Foundation
-  endif
-endif
+LDFLAGS+=-lcurl -lpthread
 
 LIBS+=lib/rxi/microtar
 SRC+=lib/rxi/microtar/src/microtar.c
@@ -93,12 +81,12 @@ lib/tidwall/json.c:
 	${CC} $< ${CFLAGS} -c -o $@
 
 dep: $(LIBS) $(OBJ)
-	${CC} ${OBJ} ${CFLAGS} ${LDFLAGS} -o dep${EXE_EXT}
-	strip --strip-all dep${EXE_EXT}
+	${CC} ${OBJ} ${CFLAGS} ${LDFLAGS} -o dep
+	strip --strip-all dep
 
 .PHONY: install
 install: dep
-	install dep${EXE_EXT} ${DESTDIR}/bin
+	install dep ${DESTDIR}/bin
 
 .PHONY: clean
 clean:

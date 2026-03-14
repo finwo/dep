@@ -31,6 +31,8 @@ Help topics:
 Installation
 ------------
 
+**Note: Windows is not supported.** This project only targets posix-compliant operating systems.
+
 To install dep, build it from source and place the binary in your `$PATH`:
 
 ```sh

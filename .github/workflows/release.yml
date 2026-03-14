@@ -15,10 +15,6 @@ jobs:
             arch: x86_64
           - os: linux
             arch: arm64
-          - os: macos
-            arch: arm64
-          - os: windows
-            arch: x86_64
 
     steps:
       - name: Checkout code
@@ -28,55 +24,19 @@ jobs:
         id: artifact
         run: |
           ARTIFACT="dep-${{ matrix.os }}-${{ matrix.arch }}"
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            ARTIFACT="${ARTIFACT}.exe"
-          fi
           echo "name=$ARTIFACT" >> $GITHUB_OUTPUT
 
-      - name: Install dependencies (Linux)
-        if: matrix.os == 'linux'
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y clang curl libcurl4-openssl-dev
 
-      - name: Set up Homebrew
-        if: matrix.os == 'macos'
-        id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@main
-
-      - name: Install dependencies (macOS)
-        if: matrix.os == 'macos'
-        run: |
-          brew install llvm
-
-      - name: Install dependencies (Windows cross-compile)
-        if: matrix.os == 'windows'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mingw-w64 curl
-
-      - name: Build for Linux
-        if: matrix.os == 'linux'
+      - name: Build
         run: make dep
-
-      - name: Build for macOS
-        if: matrix.os == 'macos'
-        run: make dep
-
-      - name: Build for Windows
-        if: matrix.os == 'windows'
-        run: |
-          make dep CC=x86_64-w64-mingw32-gcc LDFLAGS='-lwinhttp -lcrypt32' \
-            EXE_EXT=.exe ARCH_TARGET=pep-x86-64 ARCH_BIN=i386 \
-            OBJCOPY=x86_64-w64-mingw32-objcopy
 
       - name: Rename binary
         run: |
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            mv dep.exe ${{ steps.artifact.outputs.name }}
-          else
-            mv dep ${{ steps.artifact.outputs.name }}
-          fi
+          mv dep ${{ steps.artifact.outputs.name }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -7,10 +7,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#ifndef LINE_MAX
-#define LINE_MAX 4096
-#endif
-
 #include "cofyc/argparse.h"
 #include "command/command.h"
 #include "common/fs-utils.h"
