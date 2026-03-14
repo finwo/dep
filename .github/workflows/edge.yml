@@ -1,0 +1,27 @@
+name: Release Edge
+
+on:
+  push:
+    branches:
+      - main
+      - rewrite-c
+
+jobs:
+  edge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update action.yml with edge tag
+        run: |
+          sed -i 's/TAG="[^"]*"/TAG="edge"/' action.yml
+
+      - name: Commit and tag
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add action.yml
+          git commit -m "Release: update edge tag to edge" || echo "No changes to commit"
+          git tag -f edge
+          git push -f origin edge
