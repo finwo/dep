@@ -3,6 +3,13 @@ CC?=clang
 FIND=$(shell which gfind find | head -1)
 OBJCOPY=$(shell which objcopy)
 
+UNAME_P:=$(shell uname -p)
+UNAME_M:=$(shell uname -m)
+ARCH_TARGET?=$(shell echo $(UNAME_M) | sed -e 's/x86_64/elf64-x86-64/' -e 's/arm64/elf64-littleaarch64/' -e 's/aarch64/elf64-littleaarch64/')
+ARCH_BIN?=$(shell echo $(UNAME_M) | sed -e 's/x86_64/i386/' -e 's/arm64/aarch64/' -e 's/aarch64/aarch64/')
+
+EXE_EXT?=
+
 SRC:=
 INCLUDES:=
 CFLAGS:=
@@ -50,7 +57,7 @@ CFLAGS+=${INCLUDES}
 default: dep
 
 license.o: LICENSE.md
-	$(OBJCOPY) --input binary --output elf64-x86-64 --binary-architecture i386 $< $@
+	$(OBJCOPY) --input binary --output $(ARCH_TARGET) --binary-architecture $(ARCH_BIN) $< $@
 
 lib/cofyc/argparse:
 	mkdir -p lib/cofyc/argparse
@@ -86,12 +93,12 @@ lib/tidwall/json.c:
 	${CC} $< ${CFLAGS} -c -o $@
 
 dep: $(LIBS) $(OBJ)
-	${CC} ${OBJ} ${CFLAGS} ${LDFLAGS} -o $@
-	strip --strip-all $@
+	${CC} ${OBJ} ${CFLAGS} ${LDFLAGS} -o dep${EXE_EXT}
+	strip --strip-all dep${EXE_EXT}
 
 .PHONY: install
 install: dep
-	install dep ${DESTDIR}/bin
+	install dep${EXE_EXT} ${DESTDIR}/bin
 
 .PHONY: clean
 clean:

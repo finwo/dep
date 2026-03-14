@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: x86_64
+          - os: linux
+            arch: arm64
+          - os: macos
+            arch: arm64
+          - os: windows
+            arch: x86_64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set artifact name
+        id: artifact
+        run: |
+          ARTIFACT="dep-${{ matrix.os }}-${{ matrix.arch }}"
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            ARTIFACT="${ARTIFACT}.exe"
+          fi
+          echo "name=$ARTIFACT" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies (Linux)
+        if: matrix.os == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang curl
+
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos'
+        run: |
+          brew install clang
+
+      - name: Install dependencies (Windows cross-compile)
+        if: matrix.os == 'windows'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64 clang curl
+
+      - name: Build for Linux
+        if: matrix.os == 'linux'
+        run: make dep
+
+      - name: Build for macOS
+        if: matrix.os == 'macos'
+        run: make dep
+
+      - name: Build for Windows
+        if: matrix.os == 'windows'
+        run: |
+          make dep CC=x86_64-w64-mingw32-clang LDFLAGS=-lwinhttp \
+            EXE_EXT=.exe ARCH_TARGET=elf64-x86-64 ARCH_BIN=i386
+
+      - name: Rename binary
+        run: |
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            mv dep.exe ${{ steps.artifact.outputs.name }}
+          else
+            mv dep ${{ steps.artifact.outputs.name }}
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: ${{ steps.artifact.outputs.name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

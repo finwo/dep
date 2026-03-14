@@ -1,0 +1,83 @@
+name: Setup DEP package manager
+description: Installs the DEP package manager into the runner
+
+runs:
+  using: composite
+  steps:
+    - name: Determine platform artifact name
+      id: platform
+      shell: bash
+      run: |
+        OS=$(echo "${{ runner.os }}" | tr '[:upper:]' '[:lower:]')
+        ARCH=$(echo "${{ runner.arch }}" | tr '[:upper:]' '[:lower:]')
+
+        ARTIFACT_NAME="dep-${OS}-${ARCH}"
+        if [ "$OS" = "windows" ]; then
+          ARTIFACT_NAME="${ARTIFACT_NAME}.exe"
+        fi
+
+        echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
+
+    - name: Get tag version
+      id: version
+      shell: bash
+      run: |
+        TAG_REF="${{ github.action_ref }}"
+        if [ -z "$TAG_REF" ]; then
+          TAG_REF="${{ github.ref }}"
+        fi
+        TAG=${TAG_REF#refs/tags/}
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+    - name: Download prebuilt binary
+      id: download
+      shell: bash
+      run: |
+        TAG="${{ steps.version.outputs.tag }}"
+        ARTIFACT="${{ steps.platform.outputs.artifact_name }}"
+
+        mkdir -p "${GITHUB_ACTION_PATH}/dist"
+
+        RESPONSE=$(curl -sL "https://api.github.com/repos/${{ github.action_repository }}/releases/tags/$TAG")
+        DOWNLOAD_URL=$(echo "$RESPONSE" | grep -o '"browser_download_url": *"[^"]*'"$ARTIFACT"'[^"]*"' | sed 's/.*"browser_download_url": *"\([^"]*\)".*/\1/')
+
+        if [ -n "$DOWNLOAD_URL" ]; then
+          echo "Downloading $ARTIFACT from release $TAG"
+          curl -sL "$DOWNLOAD_URL" -o "${GITHUB_ACTION_PATH}/dist/dep"
+          if [ "$ARTIFACT" = "dep-windows-x86_64.exe" ]; then
+            mv "${GITHUB_ACTION_PATH}/dist/dep" "${GITHUB_ACTION_PATH}/dist/dep.exe"
+          fi
+          echo "status=success" >> $GITHUB_OUTPUT
+        else
+          echo "Prebuilt binary not found for $ARTIFACT in release $TAG, will build from source"
+          echo "status=fallback" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Build from source (fallback)
+      if: steps.download.outputs.status == 'fallback'
+      shell: bash
+      run: |
+        echo "Building dep from source..."
+
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          echo "Windows source build not yet implemented, please use a released tag"
+          exit 1
+        fi
+
+        cd "$GITHUB_ACTION_PATH"
+        make clean || true
+        make dep
+
+        mkdir -p "${GITHUB_ACTION_PATH}/dist"
+        mv dep "${GITHUB_ACTION_PATH}/dist/dep"
+
+    - name: Make executable
+      shell: bash
+      run: |
+        if [ "${{ runner.os }}" != "Windows" ]; then
+          chmod +x "${GITHUB_ACTION_PATH}/dist/dep"
+        fi
+
+    - name: Extend executable path
+      shell: bash
+      run: echo "${GITHUB_ACTION_PATH}/dist" >> $GITHUB_PATH
