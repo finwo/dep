@@ -399,10 +399,10 @@ static int install_dependency(const char *name, const char *spec) {
             strcpy(dst, lib_path);
             dst += strlen(lib_path);
             src += 9;
-          } else if (strncmp(src, "{__DIRNAME__}", 13) == 0) {
+          } else if (strncmp(src, "{{module.dirname}}", 18) == 0) {
             strcpy(dst, lib_path);
             dst += strlen(lib_path);
-            src += 13;
+            src += 18;
           } else {
             *dst++ = *src++;
           }
