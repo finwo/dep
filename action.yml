@@ -1,6 +1,15 @@
 name: Setup DEP package manager
 description: Installs the DEP package manager into the runner
 
+outputs:
+  artifact-url:
+    description: "URL of the artifact from this action's release"
+    value: ${{ format('https://github.com/{0}/releases/download/{1}/dep-{2}-{3}.zip',
+                     'finwo/dep',
+                     replace(github.action_ref, '^refs/tags/', ''),
+                     runner.os,
+                     runner.arch) }}
+
 runs:
   using: composite
   steps:
@@ -15,30 +24,21 @@ runs:
 
         echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
 
-    - name: Get tag version
-      id: version
-      shell: bash
-      run: |
-        TAG_REF="${{ github.action_ref }}"
-        if [ -z "$TAG_REF" ]; then
-          TAG_REF="${{ github.ref }}"
-        fi
-        TAG=${TAG_REF#refs/tags/}
-        echo "tag=$TAG" >> $GITHUB_OUTPUT
-
     - name: Download prebuilt binary
       id: download
       shell: bash
       run: |
-        TAG="${{ steps.version.outputs.tag }}"
         ARTIFACT="${{ steps.platform.outputs.artifact_name }}"
+        TAG="${{ replace(github.action_ref, '^refs/tags/', '') }}"
+        if [ -z "$TAG" ]; then
+          TAG="main"
+        fi
 
         mkdir -p "${GITHUB_ACTION_PATH}/dist"
 
-        RESPONSE=$(curl -sL "https://api.github.com/repos/finwo/dep/releases/tags/$TAG")
-        DOWNLOAD_URL=$(echo "$RESPONSE" | grep -o '"browser_download_url": *"[^"]*'"$ARTIFACT"'[^"]*"' | sed 's/.*"browser_download_url": *"\([^"]*\)".*/\1/')
+        DOWNLOAD_URL="https://github.com/finwo/dep/releases/download/${TAG}/${ARTIFACT}"
 
-        if [ -n "$DOWNLOAD_URL" ]; then
+        if curl -sI "$DOWNLOAD_URL" | head -1 | grep -q "200"; then
           echo "Downloading $ARTIFACT from release $TAG"
           curl -sL "$DOWNLOAD_URL" -o "${GITHUB_ACTION_PATH}/dist/dep"
           echo "status=success" >> $GITHUB_OUTPUT
