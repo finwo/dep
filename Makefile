@@ -1,7 +1,7 @@
 CC?=clang
 
 FIND=$(shell which gfind find | head -1)
-OBJCOPY=$(shell which objcopy)
+OBJCOPY?=objcopy
 
 UNAME_P:=$(shell uname -p)
 UNAME_M:=$(shell uname -m)
