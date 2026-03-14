@@ -37,18 +37,23 @@ jobs:
         if: matrix.os == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang curl
+          sudo apt-get install -y clang curl libcurl4-openssl-dev
+
+      - name: Set up Homebrew
+        if: matrix.os == 'macos'
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@main
 
       - name: Install dependencies (macOS)
         if: matrix.os == 'macos'
         run: |
-          brew install clang
+          brew install llvm
 
       - name: Install dependencies (Windows cross-compile)
         if: matrix.os == 'windows'
         run: |
           sudo apt-get update
-          sudo apt-get install -y mingw-w64 clang curl
+          sudo apt-get install -y mingw-w64 curl
 
       - name: Build for Linux
         if: matrix.os == 'linux'
@@ -61,8 +66,9 @@ jobs:
       - name: Build for Windows
         if: matrix.os == 'windows'
         run: |
-          make dep CC=x86_64-w64-mingw32-clang LDFLAGS=-lwinhttp \
-            EXE_EXT=.exe ARCH_TARGET=elf64-x86-64 ARCH_BIN=i386
+          make dep CC=x86_64-w64-mingw32-gcc LDFLAGS='-lwinhttp -lcrypt32' \
+            EXE_EXT=.exe ARCH_TARGET=pep-x86-64 ARCH_BIN=i386 \
+            OBJCOPY=x86_64-w64-mingw32-objcopy
 
       - name: Rename binary
         run: |
