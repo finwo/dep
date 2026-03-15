@@ -22,6 +22,9 @@ LIBS:=
 LIBS+=lib/cofyc/argparse
 SRC+=lib/cofyc/argparse/argparse.c
 
+LIBS+=lib/cozis/tinytemplate
+SRC+=lib/cozis/tinytemplate/src/tinytemplate.c
+
 LIBS+=lib/emmanuel-marty/em_inflate
 SRC+=lib/emmanuel-marty/em_inflate/lib/em_inflate.c
 
@@ -52,6 +55,12 @@ lib/cofyc/argparse:
 	curl -sL https://github.com/cofyc/argparse/archive/refs/heads/master.tar.gz | tar xzv --strip-components=1 -C lib/cofyc/argparse
 	mkdir -p lib/.dep/include/cofyc
 	ln -s ../../../cofyc/argparse/argparse.h lib/.dep/include/cofyc/argparse.h
+
+lib/cozis/tinytemplate:
+	mkdir -p lib/cozis/tinytemplate
+	curl -sL https://github.com/cozis/tinytemplate/archive/refs/heads/main.tar.gz | tar xzv --strip-components=1 -C lib/cozis/tinytemplate
+	mkdir -p lib/.dep/include/cozis
+	ln -s ../../../cozis/tinytemplate/src/tinytemplate.h lib/.dep/include/cozis/tinytemplate.h
 
 lib/emmanuel-marty/em_inflate:
 	mkdir -p lib/emmanuel-marty/em_inflate

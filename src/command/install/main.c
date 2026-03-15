@@ -15,6 +15,7 @@
 #include "command/command.h"
 #include "common/github-utils.h"
 #include "common/net-utils.h"
+#include "cozis/tinytemplate.h"
 #include "emmanuel-marty/em_inflate.h"
 #include "erkkah/naett.h"
 #include "rxi/microtar.h"
@@ -402,25 +403,78 @@ static int install_dependency(const char *name, const char *spec) {
     if (dst_config) {
       char line[LINE_MAX];
       while (fgets(line, sizeof(line), dep_config)) {
-        // Replace __DIRNAME and {__DIRNAME__} with the dependency's path (lib_path)
-        char  modified[LINE_MAX * 2];  // enough space for replacements
-        char *src = line;
-        char *dst = modified;
-        while (*src) {
-          if (strncmp(src, "__DIRNAME", 9) == 0) {
-            strcpy(dst, lib_path);
-            dst += strlen(lib_path);
-            src += 9;
-          } else if (strncmp(src, "{{module.dirname}}", 18) == 0) {
-            strcpy(dst, lib_path);
-            dst += strlen(lib_path);
-            src += 18;
-          } else {
-            *dst++ = *src++;
-          }
+        size_t linelen = strlen(line);
+        if (linelen > 0 && line[linelen - 1] == '\n') {
+          line[--linelen] = '\0';
         }
-        *dst = '\0';
-        fputs(modified, dst_config);
+        if (linelen > 0 && line[linelen - 1] == '\r') {
+          line[--linelen] = '\0';
+        }
+
+        tinytemplate_instr_t program[256];
+        size_t               num_instr = 0;
+        char                 errmsg[256];
+
+        if (linelen == 0) {
+          fputc('\n', dst_config);
+          continue;
+        }
+
+        if (tinytemplate_compile(line, linelen, program, 256, &num_instr, errmsg, sizeof(errmsg)) !=
+            TINYTEMPLATE_STATUS_DONE) {
+          fprintf(stderr, "Warning: template compile failed: %s\n", errmsg);
+          fputs(line, dst_config);
+          fputc('\n', dst_config);
+          continue;
+        }
+
+        struct {
+          const char *lib_path;
+          FILE       *fp;
+        } ctx = {lib_path, dst_config};
+
+        bool module_dict_getter(void *data, const char *name, size_t len, tinytemplate_value_t *value) {
+          if (len == 7 && strncmp(name, "dirname", 7) == 0) {
+            const char *lib_path = data;
+            tinytemplate_set_string(value, lib_path, strlen(lib_path));
+            return true;
+          }
+          char orig[256];
+          int  n = snprintf(orig, sizeof(orig), "{%.*s}", (int)len, name);
+          tinytemplate_set_string(value, orig, n);
+          return true;
+        }
+
+        bool template_getter(void *data, const char *name, size_t len, tinytemplate_value_t *value) {
+          struct {
+            const char *lib_path;
+            FILE       *fp;
+          } *ctx = data;
+
+          if (len == 6 && strncmp(name, "module", 6) == 0) {
+            tinytemplate_set_dict(value, (void *)ctx->lib_path, module_dict_getter);
+            return true;
+          }
+
+          char orig[256];
+          int  n = snprintf(orig, sizeof(orig), "{{%.*s}}", (int)len, name);
+          tinytemplate_set_string(value, orig, n);
+          return true;
+        }
+
+        void template_callback(void *data, const char *str, size_t len) {
+          struct {
+            const char *lib_path;
+            FILE       *fp;
+          } *ctx = data;
+          fwrite(str, 1, len, ctx->fp);
+        }
+
+        if (tinytemplate_eval(line, program, &ctx, template_getter, template_callback, errmsg, sizeof(errmsg)) !=
+            TINYTEMPLATE_STATUS_DONE) {
+          fprintf(stderr, "Warning: template eval failed: %s\n", errmsg);
+        }
+        fputc('\n', dst_config);
       }
       // Ensure a newline at end of appended content if not already ending with newline
       // (optional, but we can add a newline to separate entries)
