@@ -1,17 +1,29 @@
 CC?=clang
 
 FIND=$(shell which gfind find | head -1)
-OBJCOPY?=objcopy
 
+UNAME_S:=$(shell uname -s)
 UNAME_M:=$(shell uname -m)
-ARCH_TARGET?=$(shell echo $(UNAME_M) | sed -e 's/x86_64/elf64-x86-64/' -e 's/arm64/elf64-littleaarch64/' -e 's/aarch64/elf64-littleaarch64/')
-ARCH_BIN?=$(shell echo $(UNAME_M) | sed -e 's/x86_64/i386/' -e 's/arm64/aarch64/' -e 's/aarch64/aarch64/')
 
 SRC:=
 INCLUDES:=
 CFLAGS:=
 LDFLAGS:=
 DESTDIR?=/usr/local
+
+ifeq ($(UNAME_S),Darwin)
+  OBJCOPY:=$(shell echo "echo 'Not using objcopy'")
+  LD:=$(shell which ld)
+  LICENSE_OBJ:=license.c
+  LDFLAGS+=-lobjc
+else
+  OBJCOPY?=objcopy
+  OBJCOPY:=$(shell which objcopy)
+  LICENSE_OBJ:=license.o
+endif
+
+ARCH_TARGET?=$(shell echo $(UNAME_M) | sed -e 's/x86_64/elf64-x86-64/' -e 's/arm64/elf64-littleaarch64/' -e 's/aarch64/elf64-littleaarch64/')
+ARCH_BIN?=$(shell echo $(UNAME_M) | sed -e 's/x86_64/i386/' -e 's/arm64/aarch64/' -e 's/aarch64/aarch64/')
 
 SRC+=$(shell $(FIND) src/ -type f -name '*.c')
 INCLUDES+=-Isrc
@@ -40,7 +52,7 @@ SRC+=lib/tidwall/json.c/json.c
 
 OBJ:=$(SRC:.c=.o)
 OBJ:=$(OBJ:.cc=.o)
-OBJ+=license.o
+OBJ+=$(LICENSE_OBJ)
 
 CFLAGS+=${INCLUDES}
 
@@ -49,6 +61,12 @@ default: dep
 
 license.o: LICENSE.md
 	$(OBJCOPY) --input binary --output $(ARCH_TARGET) --binary-architecture $(ARCH_BIN) $< $@
+
+license.c: LICENSE.md
+	(echo "static const unsigned char _license_md_data[] = {"; xxd -i < LICENSE.md; echo "};") > license.c
+	(echo "static const unsigned char * const _license_md_end = _license_md_data + sizeof(_license_md_data);" >> license.c)
+	(echo "const unsigned char * const _binary_LICENSE_md_start = _license_md_data;" >> license.c)
+	(echo "const unsigned char * const _binary_LICENSE_md_end = _license_md_end;" >> license.c)
 
 lib/cofyc/argparse:
 	mkdir -p lib/cofyc/argparse
@@ -91,7 +109,7 @@ lib/tidwall/json.c:
 
 dep: $(LIBS) $(OBJ)
 	${CC} ${OBJ} ${CFLAGS} ${LDFLAGS} -o dep
-	strip --strip-all dep
+	strip -u -r dep 2>/dev/null || true
 
 .PHONY: install
 install: dep
