@@ -168,7 +168,7 @@ int download_and_extract(const char *url, const char *dest_dir) {
     return -1;
   }
 
-  size_t max_tar_size = gzip_size * 15;
+  size_t max_tar_size = gzip_size * 256;
   char  *tar_data     = malloc(max_tar_size);
   if (!tar_data) {
     free(gzip_data);
