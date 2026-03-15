@@ -12,6 +12,11 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#ifdef __APPLE__
+#include <crt_externs.h>
+#define environ (*_NSGetEnviron())
+#endif
+
 #include "command/command.h"
 #include "common/github-utils.h"
 #include "common/net-utils.h"
@@ -294,6 +299,44 @@ static int execute_postinstall_hook(const char *dep_dir) {
   }
 }
 
+static int install_dependency(const char *name, const char *spec);
+
+struct template_ctx {
+  const char *lib_path;
+  FILE       *fp;
+};
+
+static bool module_dict_getter(void *data, const char *name, size_t len, tinytemplate_value_t *value) {
+  const char *lib_path = data;
+  if (len == 7 && strncmp(name, "dirname", 7) == 0) {
+    tinytemplate_set_string(value, lib_path, strlen(lib_path));
+    return true;
+  }
+  char orig[256];
+  int  n = snprintf(orig, sizeof(orig), "{%.*s}", (int)len, name);
+  tinytemplate_set_string(value, orig, n);
+  return true;
+}
+
+static bool template_getter(void *data, const char *name, size_t len, tinytemplate_value_t *value) {
+  struct template_ctx *ctx = data;
+
+  if (len == 6 && strncmp(name, "module", 6) == 0) {
+    tinytemplate_set_dict(value, (void *)ctx->lib_path, module_dict_getter);
+    return true;
+  }
+
+  char orig[256];
+  int  n = snprintf(orig, sizeof(orig), "{{%.*s}}", (int)len, name);
+  tinytemplate_set_string(value, orig, n);
+  return true;
+}
+
+static void template_callback(void *data, const char *str, size_t len) {
+  struct template_ctx *ctx = data;
+  fwrite(str, 1, len, ctx->fp);
+}
+
 static int install_dependency(const char *name, const char *spec) {
   char lib_path[PATH_MAX];
   snprintf(lib_path, sizeof(lib_path), "lib/%s", name);
@@ -428,47 +471,7 @@ static int install_dependency(const char *name, const char *spec) {
           continue;
         }
 
-        struct {
-          const char *lib_path;
-          FILE       *fp;
-        } ctx = {lib_path, dst_config};
-
-        bool module_dict_getter(void *data, const char *name, size_t len, tinytemplate_value_t *value) {
-          if (len == 7 && strncmp(name, "dirname", 7) == 0) {
-            const char *lib_path = data;
-            tinytemplate_set_string(value, lib_path, strlen(lib_path));
-            return true;
-          }
-          char orig[256];
-          int  n = snprintf(orig, sizeof(orig), "{%.*s}", (int)len, name);
-          tinytemplate_set_string(value, orig, n);
-          return true;
-        }
-
-        bool template_getter(void *data, const char *name, size_t len, tinytemplate_value_t *value) {
-          struct {
-            const char *lib_path;
-            FILE       *fp;
-          } *ctx = data;
-
-          if (len == 6 && strncmp(name, "module", 6) == 0) {
-            tinytemplate_set_dict(value, (void *)ctx->lib_path, module_dict_getter);
-            return true;
-          }
-
-          char orig[256];
-          int  n = snprintf(orig, sizeof(orig), "{{%.*s}}", (int)len, name);
-          tinytemplate_set_string(value, orig, n);
-          return true;
-        }
-
-        void template_callback(void *data, const char *str, size_t len) {
-          struct {
-            const char *lib_path;
-            FILE       *fp;
-          } *ctx = data;
-          fwrite(str, 1, len, ctx->fp);
-        }
+        struct template_ctx ctx = {lib_path, dst_config};
 
         if (tinytemplate_eval(line, program, &ctx, template_getter, template_callback, errmsg, sizeof(errmsg)) !=
             TINYTEMPLATE_STATUS_DONE) {

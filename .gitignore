@@ -1,3 +1,4 @@
 /lib/
 *.o
 /dep
+/license.c
