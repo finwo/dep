@@ -106,8 +106,12 @@ static int parse_manifest_line(const char *line, char *depname, char *version, c
     url[0]                    = '\0';
   }
 
+  char depname_copy[256];
+  strncpy(depname_copy, depname, sizeof(depname_copy) - 1);
+  depname_copy[sizeof(depname_copy) - 1] = '\0';
+
   char version_from_depname[256];
-  extract_version_from_depname(depname, depname, version_from_depname, depname_size, sizeof(version_from_depname));
+  extract_version_from_depname(depname_copy, depname, version_from_depname, depname_size, sizeof(version_from_depname));
 
   if (version_from_depname[0] != '\0') {
     strncpy(version, version_from_depname, version_size - 1);
