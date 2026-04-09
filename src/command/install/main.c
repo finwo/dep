@@ -27,6 +27,56 @@
 
 /* Forward declarations */
 static int install_dependency(const char *name, const char *spec);
+static int process_dep_config_mk(const char *name, FILE *dst_config);
+
+/* Visited dependency tracking */
+static char **visited_deps          = NULL;
+static int    visited_deps_count    = 0;
+static int    visited_deps_capacity = 0;
+
+static int is_visited(const char *name) {
+  for (int i = 0; i < visited_deps_count; i++) {
+    if (strcmp(visited_deps[i], name) == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int mark_visited(const char *name) {
+  if (is_visited(name)) {
+    return 0;
+  }
+
+  if (visited_deps_count >= visited_deps_capacity) {
+    int    new_capacity = visited_deps_capacity == 0 ? 16 : visited_deps_capacity * 2;
+    char **new_deps     = realloc(visited_deps, new_capacity * sizeof(char *));
+    if (!new_deps) {
+      fprintf(stderr, "Error: failed to allocate memory for visited deps\n");
+      return -1;
+    }
+    visited_deps          = new_deps;
+    visited_deps_capacity = new_capacity;
+  }
+
+  visited_deps[visited_deps_count] = strdup(name);
+  if (!visited_deps[visited_deps_count]) {
+    fprintf(stderr, "Error: failed to allocate memory for dep name\n");
+    return -1;
+  }
+  visited_deps_count++;
+  return 1;
+}
+
+static void clear_visited(void) {
+  for (int i = 0; i < visited_deps_count; i++) {
+    free(visited_deps[i]);
+  }
+  free(visited_deps);
+  visited_deps          = NULL;
+  visited_deps_count    = 0;
+  visited_deps_capacity = 0;
+}
 
 static int dir_exists(const char *path) {
   struct stat st;
@@ -337,163 +387,286 @@ static void template_callback(void *data, const char *str, size_t len) {
   fwrite(str, 1, len, ctx->fp);
 }
 
-static int install_dependency(const char *name, const char *spec) {
+static int process_dep_config_mk(const char *name, FILE *dst_config) {
   char lib_path[PATH_MAX];
   snprintf(lib_path, sizeof(lib_path), "lib/%s", name);
-
-  if (dir_exists(lib_path)) {
-    printf("Skipping %s (already installed)\n", name);
-    return 0;
-  }
-
-  char *url = spec_to_url(name, spec);
-  if (!url) {
-    fprintf(stderr, "Error: failed to resolve spec for %s\n", name);
-    return -1;
-  }
-
-  printf("Installing %s from %s\n", name, url);
-
-  mkdir_recursive(lib_path);
-
-  if (download_and_extract(url, lib_path) != 0) {
-    fprintf(stderr, "Error: failed to install %s\n", name);
-    free(url);
-    return -1;
-  }
-  free(url);
-
-  // Process .dep.chain recursively
-  char dep_chain_path[PATH_MAX];
-  while (1) {
-    // Build .dep.chain path
-    snprintf(dep_chain_path, sizeof(dep_chain_path), "%s/.dep.chain", lib_path);
-
-    // Check if .dep.chain exists
-    FILE *chain_file = fopen(dep_chain_path, "r");
-    if (!chain_file) {
-      break;  // No more chaining
-    }
-
-    // Read spec (single line)
-    char spec[1024] = {0};
-    if (!fgets(spec, sizeof(spec), chain_file)) {
-      fclose(chain_file);
-      fprintf(stderr, "Error: failed to read .dep.chain\n");
-      return -1;
-    }
-    fclose(chain_file);
-
-    // Delete .dep.chain file
-    if (remove(dep_chain_path) != 0) {
-      fprintf(stderr, "Warning: failed to remove .dep.chain\n");
-      // Continue anyway - spec was read
-    }
-
-    // Trim whitespace/newline from spec
-    char *trimmed = trim_whitespace(spec);
-    if (strlen(trimmed) == 0) {
-      fprintf(stderr, "Warning: empty spec in .dep.chain\n");
-      continue;
-    }
-
-    printf("Found .dep.chain, chaining to: %s\n", trimmed);
-
-    // Resolve spec to URL
-    char *overlay_url = spec_to_url(name, trimmed);
-    if (!overlay_url) {
-      fprintf(stderr, "Error: failed to resolve chained spec '%s'\n", trimmed);
-      return -1;
-    }
-
-    // Overlay extract (directly over existing files)
-    printf("Overlaying %s from %s\n", name, overlay_url);
-    if (download_and_extract(overlay_url, lib_path) != 0) {
-      fprintf(stderr, "Error: failed to overlay chained dependency\n");
-      free(overlay_url);
-      return -1;
-    }
-    free(overlay_url);
-    // Loop continues to check for new .dep.chain
-  }
-
-  // Process .dep file in the dependency's directory
-  if (process_dep_file_in_dir(lib_path) != 0) {
-    fprintf(stderr, "Warning: failed to process .dep file for %s\n", name);
-    // Not returning error because the dependency itself installed successfully.
-  }
-
-  // Execute postinstall hook if present
-  if (execute_postinstall_hook(lib_path) != 0) {
-    fprintf(stderr, "Error: postinstall hook failed for %s\n", name);
-    return -1;
-  }
-
-  // Handle config.mk: append dependency's config.mk to lib/.dep/config.mk
-  char dep_dir[PATH_MAX];
-  snprintf(dep_dir, sizeof(dep_dir), "lib/.dep");
-  mkdir_recursive(dep_dir);
 
   char src_config_path[PATH_MAX];
   snprintf(src_config_path, sizeof(src_config_path), "%s/config.mk", lib_path);
 
-  char dst_config_path[PATH_MAX];
-  snprintf(dst_config_path, sizeof(dst_config_path), "lib/.dep/config.mk");
-
   FILE *dep_config = fopen(src_config_path, "r");
-  if (dep_config) {
-    FILE *dst_config = fopen(dst_config_path, "a");
-    if (dst_config) {
-      char line[LINE_MAX];
-      while (fgets(line, sizeof(line), dep_config)) {
-        size_t linelen = strlen(line);
-        if (linelen > 0 && line[linelen - 1] == '\n') {
-          line[--linelen] = '\0';
-        }
-        if (linelen > 0 && line[linelen - 1] == '\r') {
-          line[--linelen] = '\0';
-        }
+  if (!dep_config) {
+    return 0;
+  }
 
-        tinytemplate_instr_t program[256];
-        size_t               num_instr = 0;
-        char                 errmsg[256];
-
-        if (linelen == 0) {
-          fputc('\n', dst_config);
-          continue;
-        }
-
-        if (tinytemplate_compile(line, linelen, program, 256, &num_instr, errmsg, sizeof(errmsg)) !=
-            TINYTEMPLATE_STATUS_DONE) {
-          fprintf(stderr, "Warning: template compile failed: %s\n", errmsg);
-          fputs(line, dst_config);
-          fputc('\n', dst_config);
-          continue;
-        }
-
-        struct template_ctx ctx = {lib_path, dst_config};
-
-        if (tinytemplate_eval(line, program, &ctx, template_getter, template_callback, errmsg, sizeof(errmsg)) !=
-            TINYTEMPLATE_STATUS_DONE) {
-          fprintf(stderr, "Warning: template eval failed: %s\n", errmsg);
-        }
-        fputc('\n', dst_config);
-      }
-      // Ensure a newline at end of appended content if not already ending with newline
-      // (optional, but we can add a newline to separate entries)
-      fputc('\n', dst_config);
-      fclose(dst_config);
-    } else {
-      fprintf(stderr, "Warning: could not open %s for appending\n", dst_config_path);
+  char line[LINE_MAX];
+  while (fgets(line, sizeof(line), dep_config)) {
+    size_t linelen = strlen(line);
+    if (linelen > 0 && line[linelen - 1] == '\n') {
+      line[--linelen] = '\0';
     }
-    fclose(dep_config);
+    if (linelen > 0 && line[linelen - 1] == '\r') {
+      line[--linelen] = '\0';
+    }
+
+    if (linelen == 0) {
+      fputc('\n', dst_config);
+      continue;
+    }
+
+    tinytemplate_instr_t program[256];
+    size_t               num_instr = 0;
+    char                 errmsg[256];
+
+    if (tinytemplate_compile(line, linelen, program, 256, &num_instr, errmsg, sizeof(errmsg)) !=
+        TINYTEMPLATE_STATUS_DONE) {
+      fprintf(stderr, "Warning: template compile failed: %s\n", errmsg);
+      fputs(line, dst_config);
+      fputc('\n', dst_config);
+      continue;
+    }
+
+    struct template_ctx ctx = {lib_path, dst_config};
+
+    if (tinytemplate_eval(line, program, &ctx, template_getter, template_callback, errmsg, sizeof(errmsg)) !=
+        TINYTEMPLATE_STATUS_DONE) {
+      fprintf(stderr, "Warning: template eval failed: %s\n", errmsg);
+    }
+    fputc('\n', dst_config);
   }
 
-  if (process_dep_export_file(lib_path, name) != 0) {
-    fprintf(stderr, "Warning: failed to process .dep.export file for %s\n", name);
+  fputc('\n', dst_config);
+  fclose(dep_config);
+  return 0;
+}
+
+static int install_dependency(const char *name, const char *spec) {
+  if (is_visited(name)) {
+    return 0;
   }
 
-  printf("Installed %s\n", name);
+  char lib_path[PATH_MAX];
+  snprintf(lib_path, sizeof(lib_path), "lib/%s", name);
+
+  int already_installed = dir_exists(lib_path);
+
+  if (already_installed) {
+    printf("Skipping %s (already installed)\n", name);
+  } else {
+    char *url = spec_to_url(name, spec);
+    if (!url) {
+      fprintf(stderr, "Error: failed to resolve spec for %s\n", name);
+      return -1;
+    }
+
+    printf("Installing %s from %s\n", name, url);
+
+    mkdir_recursive(lib_path);
+
+    if (download_and_extract(url, lib_path) != 0) {
+      fprintf(stderr, "Error: failed to install %s\n", name);
+      free(url);
+      return -1;
+    }
+    free(url);
+
+    // Process .dep.chain recursively
+    char dep_chain_path[PATH_MAX];
+    while (1) {
+      snprintf(dep_chain_path, sizeof(dep_chain_path), "%s/.dep.chain", lib_path);
+
+      FILE *chain_file = fopen(dep_chain_path, "r");
+      if (!chain_file) {
+        break;
+      }
+
+      char chain_spec[1024] = {0};
+      if (!fgets(chain_spec, sizeof(chain_spec), chain_file)) {
+        fclose(chain_file);
+        fprintf(stderr, "Error: failed to read .dep.chain\n");
+        return -1;
+      }
+      fclose(chain_file);
+
+      if (remove(dep_chain_path) != 0) {
+        fprintf(stderr, "Warning: failed to remove .dep.chain\n");
+      }
+
+      char *trimmed = trim_whitespace(chain_spec);
+      if (strlen(trimmed) == 0) {
+        fprintf(stderr, "Warning: empty spec in .dep.chain\n");
+        continue;
+      }
+
+      printf("Found .dep.chain, chaining to: %s\n", trimmed);
+
+      char *overlay_url = spec_to_url(name, trimmed);
+      if (!overlay_url) {
+        fprintf(stderr, "Error: failed to resolve chained spec '%s'\n", trimmed);
+        return -1;
+      }
+
+      printf("Overlaying %s from %s\n", name, overlay_url);
+      if (download_and_extract(overlay_url, lib_path) != 0) {
+        fprintf(stderr, "Error: failed to overlay chained dependency\n");
+        free(overlay_url);
+        return -1;
+      }
+      free(overlay_url);
+    }
+
+    // Process .dep file in the dependency's directory
+    if (process_dep_file_in_dir(lib_path) != 0) {
+      fprintf(stderr, "Warning: failed to process .dep file for %s\n", name);
+    }
+
+    // Execute postinstall hook if present
+    if (execute_postinstall_hook(lib_path) != 0) {
+      fprintf(stderr, "Error: postinstall hook failed for %s\n", name);
+      return -1;
+    }
+
+    // Handle .dep.export file
+    if (process_dep_export_file(lib_path, name) != 0) {
+      fprintf(stderr, "Warning: failed to process .dep.export file for %s\n", name);
+    }
+
+    printf("Installed %s\n", name);
+  }
+
+  // Mark as visited after processing sub-dependencies (so they come first in config.mk order)
+  if (mark_visited(name) < 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+static int process_dep_file_for_config_mk(const char *dep_path);
+
+static int process_dep_file_for_config_mk(const char *dep_path) {
+  FILE *f = fopen(dep_path, "r");
+  if (!f) {
+    return 0;
+  }
+
+  char line[LINE_MAX];
+  while (fgets(line, sizeof(line), f)) {
+    char *comment = strchr(line, '#');
+    if (comment) *comment = '\0';
+
+    char *trimmed = trim_whitespace(line);
+    if (strlen(trimmed) == 0) continue;
+
+    char name[256]  = {0};
+    char spec[1024] = {0};
+
+    char *space_pos        = strchr(trimmed, ' ');
+    char *tab_pos          = strchr(trimmed, '\t');
+    char *first_whitespace = NULL;
+    if (space_pos && tab_pos) {
+      first_whitespace = (space_pos < tab_pos) ? space_pos : tab_pos;
+    } else if (space_pos) {
+      first_whitespace = space_pos;
+    } else if (tab_pos) {
+      first_whitespace = tab_pos;
+    }
+
+    if (first_whitespace) {
+      size_t name_len = first_whitespace - trimmed;
+      strncpy(name, trimmed, name_len);
+      name[name_len] = '\0';
+      strcpy(spec, trim_whitespace(first_whitespace + 1));
+    } else {
+      strncpy(name, trimmed, sizeof(name) - 1);
+      name[sizeof(name) - 1] = '\0';
+    }
+
+    if (strlen(name) == 0) continue;
+
+    // Process sub-dependencies first
+    char sub_dep_path[PATH_MAX];
+    snprintf(sub_dep_path, sizeof(sub_dep_path), "lib/%s/.dep", name);
+    process_dep_file_for_config_mk(sub_dep_path);
+
+    // Then process this dependency if not already visited
+    if (!is_visited(name)) {
+      continue;
+    }
+  }
+
+  fclose(f);
+  return 0;
+}
+
+static int rebuild_config_mk(void) {
+  char dep_dir[PATH_MAX];
+  snprintf(dep_dir, sizeof(dep_dir), "lib/.dep");
+  mkdir_recursive(dep_dir);
+
+  char config_mk_path[PATH_MAX];
+  snprintf(config_mk_path, sizeof(config_mk_path), "%s/config.mk", dep_dir);
+
+  FILE *config_mk = fopen(config_mk_path, "w");
+  if (!config_mk) {
+    fprintf(stderr, "Error: could not create %s\n", config_mk_path);
+    return -1;
+  }
+
+  fputs("CFLAGS+=-Ilib/.dep/include\n", config_mk);
+
+  // Process dependencies in order, adding their config.mk content
+  FILE *f = fopen(".dep", "r");
+  if (!f) {
+    fclose(config_mk);
+    return 0;
+  }
+
+  char line[LINE_MAX];
+  while (fgets(line, sizeof(line), f)) {
+    char *comment = strchr(line, '#');
+    if (comment) *comment = '\0';
+
+    char *trimmed = trim_whitespace(line);
+    if (strlen(trimmed) == 0) continue;
+
+    char name[256]  = {0};
+    char spec[1024] = {0};
+
+    char *space_pos        = strchr(trimmed, ' ');
+    char *tab_pos          = strchr(trimmed, '\t');
+    char *first_whitespace = NULL;
+    if (space_pos && tab_pos) {
+      first_whitespace = (space_pos < tab_pos) ? space_pos : tab_pos;
+    } else if (space_pos) {
+      first_whitespace = space_pos;
+    } else if (tab_pos) {
+      first_whitespace = tab_pos;
+    }
+
+    if (first_whitespace) {
+      size_t name_len = first_whitespace - trimmed;
+      strncpy(name, trimmed, name_len);
+      name[name_len] = '\0';
+      strcpy(spec, trim_whitespace(first_whitespace + 1));
+    } else {
+      strncpy(name, trimmed, sizeof(name) - 1);
+      name[sizeof(name) - 1] = '\0';
+    }
+
+    if (strlen(name) == 0) continue;
+
+    // Process sub-dependencies first (recursively)
+    char sub_dep_path[PATH_MAX];
+    snprintf(sub_dep_path, sizeof(sub_dep_path), "lib/%s/.dep", name);
+    process_dep_file_for_config_mk(sub_dep_path);
+
+    // Then add this dependency's config.mk
+    process_dep_config_mk(name, config_mk);
+  }
+
+  fclose(f);
+  fclose(config_mk);
   return 0;
 }
 
@@ -520,19 +693,10 @@ static int cmd_install(int argc, const char **argv) {
   snprintf(dep_dir, sizeof(dep_dir), "lib/.dep");
   mkdir_recursive(dep_dir);
 
-  char config_mk_path[PATH_MAX];
-  snprintf(config_mk_path, sizeof(config_mk_path), "%s/config.mk", dep_dir);
-  FILE *config_mk = fopen(config_mk_path, "w");
-  if (config_mk) {
-    fputs("CFLAGS+=-Ilib/.dep/include\n", config_mk);
-    fclose(config_mk);
-  } else {
-    fprintf(stderr, "Warning: could not create %s\n", config_mk_path);
-  }
-
   char line[LINE_MAX];
   int  has_deps = 0;
 
+  // First pass: install all dependencies
   while (fgets(line, sizeof(line), f)) {
     char *comment = strchr(line, '#');
     if (comment) *comment = '\0';
@@ -568,10 +732,22 @@ static int cmd_install(int argc, const char **argv) {
 
     if (strlen(name) == 0) continue;
 
-    install_dependency(name, spec);
+    if (install_dependency(name, spec) != 0) {
+      fclose(f);
+      clear_visited();
+      return 1;
+    }
   }
 
   fclose(f);
+
+  // Rebuild config.mk from all installed dependencies
+  if (rebuild_config_mk() != 0) {
+    clear_visited();
+    return 1;
+  }
+
+  clear_visited();
 
   if (!has_deps) {
     printf("No dependencies to install\n");
