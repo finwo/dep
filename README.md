@@ -100,6 +100,12 @@ dep install
 
 Dependencies are installed to the `lib/` directory by default.
 
+### Dependency exports
+
+Dependencies can export build configuration through an `export.mk` file. When a dependency contains an `export.mk` file in its root directory, its contents are processed and included in the generated `lib/.dep/config.mk` file. Template variables like `{{module.dirname}}` are replaced with the dependency's library path.
+
+**Note:** The legacy filename `config.mk` is also supported but deprecated. Dependencies using `config.mk` will trigger a deprecation warning.
+
 ### Repository management
 
 dep can use custom repositories to discover packages. Repositories are

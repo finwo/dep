@@ -28,54 +28,55 @@
 /* Forward declarations */
 static int install_dependency(const char *name, const char *spec);
 static int process_dep_config_mk(const char *name, FILE *dst_config);
+static int process_dep_for_config(const char *name, FILE *dst_config);
 
-/* Visited dependency tracking */
-static char **visited_deps          = NULL;
-static int    visited_deps_count    = 0;
-static int    visited_deps_capacity = 0;
+/* Config-phase visited dependency tracking (used only in Pass 2) */
+static char **config_visited_deps          = NULL;
+static int    config_visited_deps_count    = 0;
+static int    config_visited_deps_capacity = 0;
 
-static int is_visited(const char *name) {
-  for (int i = 0; i < visited_deps_count; i++) {
-    if (strcmp(visited_deps[i], name) == 0) {
+static int config_is_visited(const char *name) {
+  for (int i = 0; i < config_visited_deps_count; i++) {
+    if (strcmp(config_visited_deps[i], name) == 0) {
       return 1;
     }
   }
   return 0;
 }
 
-static int mark_visited(const char *name) {
-  if (is_visited(name)) {
+static int config_mark_visited(const char *name) {
+  if (config_is_visited(name)) {
     return 0;
   }
 
-  if (visited_deps_count >= visited_deps_capacity) {
-    int    new_capacity = visited_deps_capacity == 0 ? 16 : visited_deps_capacity * 2;
-    char **new_deps     = realloc(visited_deps, new_capacity * sizeof(char *));
+  if (config_visited_deps_count >= config_visited_deps_capacity) {
+    int    new_capacity = config_visited_deps_capacity == 0 ? 16 : config_visited_deps_capacity * 2;
+    char **new_deps     = realloc(config_visited_deps, new_capacity * sizeof(char *));
     if (!new_deps) {
-      fprintf(stderr, "Error: failed to allocate memory for visited deps\n");
+      fprintf(stderr, "Error: failed to allocate memory for config visited deps\n");
       return -1;
     }
-    visited_deps          = new_deps;
-    visited_deps_capacity = new_capacity;
+    config_visited_deps          = new_deps;
+    config_visited_deps_capacity = new_capacity;
   }
 
-  visited_deps[visited_deps_count] = strdup(name);
-  if (!visited_deps[visited_deps_count]) {
-    fprintf(stderr, "Error: failed to allocate memory for dep name\n");
+  config_visited_deps[config_visited_deps_count] = strdup(name);
+  if (!config_visited_deps[config_visited_deps_count]) {
+    fprintf(stderr, "Error: failed to allocate memory for config dep name\n");
     return -1;
   }
-  visited_deps_count++;
+  config_visited_deps_count++;
   return 1;
 }
 
-static void clear_visited(void) {
-  for (int i = 0; i < visited_deps_count; i++) {
-    free(visited_deps[i]);
+static void config_clear_visited(void) {
+  for (int i = 0; i < config_visited_deps_count; i++) {
+    free(config_visited_deps[i]);
   }
-  free(visited_deps);
-  visited_deps          = NULL;
-  visited_deps_count    = 0;
-  visited_deps_capacity = 0;
+  free(config_visited_deps);
+  config_visited_deps          = NULL;
+  config_visited_deps_count    = 0;
+  config_visited_deps_capacity = 0;
 }
 
 static int dir_exists(const char *path) {
@@ -392,12 +393,25 @@ static int process_dep_config_mk(const char *name, FILE *dst_config) {
   snprintf(lib_path, sizeof(lib_path), "lib/%s", name);
 
   char src_config_path[PATH_MAX];
-  snprintf(src_config_path, sizeof(src_config_path), "%s/config.mk", lib_path);
+  // Try export.mk first (new preferred name), fall back to config.mk
+  snprintf(src_config_path, sizeof(src_config_path), "%s/export.mk", lib_path);
 
-  FILE *dep_config = fopen(src_config_path, "r");
+  FILE *dep_config   = fopen(src_config_path, "r");
+  int   using_legacy = 0;
   if (!dep_config) {
-    return 0;
+    // Fall back to legacy config.mk
+    snprintf(src_config_path, sizeof(src_config_path), "%s/config.mk", lib_path);
+    dep_config = fopen(src_config_path, "r");
+    if (dep_config) {
+      using_legacy = 1;
+      fprintf(stderr, "Deprecation warning: %s uses config.mk, please rename to export.mk\n", name);
+    } else {
+      return 0;
+    }
   }
+
+  // Write dependency name as a comment
+  fprintf(dst_config, "\n# %s\n", name);
 
   char line[LINE_MAX];
   while (fgets(line, sizeof(line), dep_config)) {
@@ -441,165 +455,155 @@ static int process_dep_config_mk(const char *name, FILE *dst_config) {
 }
 
 static int install_dependency(const char *name, const char *spec) {
-  if (is_visited(name)) {
-    return 0;
-  }
-
   char lib_path[PATH_MAX];
   snprintf(lib_path, sizeof(lib_path), "lib/%s", name);
 
-  int already_installed = dir_exists(lib_path);
-
-  if (already_installed) {
-    printf("Skipping %s (already installed)\n", name);
-  } else {
-    char *url = spec_to_url(name, spec);
-    if (!url) {
-      fprintf(stderr, "Error: failed to resolve spec for %s\n", name);
-      return -1;
-    }
-
-    printf("Installing %s from %s\n", name, url);
-
-    mkdir_recursive(lib_path);
-
-    if (download_and_extract(url, lib_path) != 0) {
-      fprintf(stderr, "Error: failed to install %s\n", name);
-      free(url);
-      return -1;
-    }
-    free(url);
-
-    // Process .dep.chain recursively
-    char dep_chain_path[PATH_MAX];
-    while (1) {
-      snprintf(dep_chain_path, sizeof(dep_chain_path), "%s/.dep.chain", lib_path);
-
-      FILE *chain_file = fopen(dep_chain_path, "r");
-      if (!chain_file) {
-        break;
-      }
-
-      char chain_spec[1024] = {0};
-      if (!fgets(chain_spec, sizeof(chain_spec), chain_file)) {
-        fclose(chain_file);
-        fprintf(stderr, "Error: failed to read .dep.chain\n");
-        return -1;
-      }
-      fclose(chain_file);
-
-      if (remove(dep_chain_path) != 0) {
-        fprintf(stderr, "Warning: failed to remove .dep.chain\n");
-      }
-
-      char *trimmed = trim_whitespace(chain_spec);
-      if (strlen(trimmed) == 0) {
-        fprintf(stderr, "Warning: empty spec in .dep.chain\n");
-        continue;
-      }
-
-      printf("Found .dep.chain, chaining to: %s\n", trimmed);
-
-      char *overlay_url = spec_to_url(name, trimmed);
-      if (!overlay_url) {
-        fprintf(stderr, "Error: failed to resolve chained spec '%s'\n", trimmed);
-        return -1;
-      }
-
-      printf("Overlaying %s from %s\n", name, overlay_url);
-      if (download_and_extract(overlay_url, lib_path) != 0) {
-        fprintf(stderr, "Error: failed to overlay chained dependency\n");
-        free(overlay_url);
-        return -1;
-      }
-      free(overlay_url);
-    }
-
-    // Process .dep file in the dependency's directory
-    if (process_dep_file_in_dir(lib_path) != 0) {
-      fprintf(stderr, "Warning: failed to process .dep file for %s\n", name);
-    }
-
-    // Execute postinstall hook if present
-    if (execute_postinstall_hook(lib_path) != 0) {
-      fprintf(stderr, "Error: postinstall hook failed for %s\n", name);
-      return -1;
-    }
-
-    // Handle .dep.export file
-    if (process_dep_export_file(lib_path, name) != 0) {
-      fprintf(stderr, "Warning: failed to process .dep.export file for %s\n", name);
-    }
-
-    printf("Installed %s\n", name);
+  if (dir_exists(lib_path)) {
+    return 0;
   }
 
-  // Mark as visited after processing sub-dependencies (so they come first in config.mk order)
-  if (mark_visited(name) < 0) {
+  char *url = spec_to_url(name, spec);
+  if (!url) {
+    fprintf(stderr, "Error: failed to resolve spec for %s\n", name);
     return -1;
   }
+
+  printf("Installing %s from %s\n", name, url);
+
+  mkdir_recursive(lib_path);
+
+  if (download_and_extract(url, lib_path) != 0) {
+    fprintf(stderr, "Error: failed to install %s\n", name);
+    free(url);
+    return -1;
+  }
+  free(url);
+
+  // Process .dep.chain recursively
+  char dep_chain_path[PATH_MAX];
+  while (1) {
+    snprintf(dep_chain_path, sizeof(dep_chain_path), "%s/.dep.chain", lib_path);
+
+    FILE *chain_file = fopen(dep_chain_path, "r");
+    if (!chain_file) {
+      break;
+    }
+
+    char chain_spec[1024] = {0};
+    if (!fgets(chain_spec, sizeof(chain_spec), chain_file)) {
+      fclose(chain_file);
+      fprintf(stderr, "Error: failed to read .dep.chain\n");
+      return -1;
+    }
+    fclose(chain_file);
+
+    if (remove(dep_chain_path) != 0) {
+      fprintf(stderr, "Warning: failed to remove .dep.chain\n");
+    }
+
+    char *trimmed = trim_whitespace(chain_spec);
+    if (strlen(trimmed) == 0) {
+      fprintf(stderr, "Warning: empty spec in .dep.chain\n");
+      continue;
+    }
+
+    printf("Found .dep.chain, chaining to: %s\n", trimmed);
+
+    char *overlay_url = spec_to_url(name, trimmed);
+    if (!overlay_url) {
+      fprintf(stderr, "Error: failed to resolve chained spec '%s'\n", trimmed);
+      return -1;
+    }
+
+    printf("Overlaying %s from %s\n", name, overlay_url);
+    if (download_and_extract(overlay_url, lib_path) != 0) {
+      fprintf(stderr, "Error: failed to overlay chained dependency\n");
+      free(overlay_url);
+      return -1;
+    }
+    free(overlay_url);
+  }
+
+  // Process .dep file in the dependency's directory
+  if (process_dep_file_in_dir(lib_path) != 0) {
+    fprintf(stderr, "Warning: failed to process .dep file for %s\n", name);
+  }
+
+  // Execute postinstall hook if present
+  if (execute_postinstall_hook(lib_path) != 0) {
+    fprintf(stderr, "Error: postinstall hook failed for %s\n", name);
+    return -1;
+  }
+
+  // Handle .dep.export file
+  if (process_dep_export_file(lib_path, name) != 0) {
+    fprintf(stderr, "Warning: failed to process .dep.export file for %s\n", name);
+  }
+
+  printf("Installed %s\n", name);
 
   return 0;
 }
 
-static int process_dep_file_for_config_mk(const char *dep_path);
-
-static int process_dep_file_for_config_mk(const char *dep_path) {
-  FILE *f = fopen(dep_path, "r");
-  if (!f) {
+static int process_dep_for_config(const char *name, FILE *dst_config) {
+  // Skip if already processed
+  if (config_is_visited(name)) {
     return 0;
   }
 
-  char line[LINE_MAX];
-  while (fgets(line, sizeof(line), f)) {
-    char *comment = strchr(line, '#');
-    if (comment) *comment = '\0';
+  // Recurse into sub-dependencies first
+  char sub_dep_path[PATH_MAX];
+  snprintf(sub_dep_path, sizeof(sub_dep_path), "lib/%s/.dep", name);
+  FILE *f = fopen(sub_dep_path, "r");
+  if (f) {
+    char line[LINE_MAX];
+    while (fgets(line, sizeof(line), f)) {
+      char *comment = strchr(line, '#');
+      if (comment) *comment = '\0';
 
-    char *trimmed = trim_whitespace(line);
-    if (strlen(trimmed) == 0) continue;
+      char *trimmed = trim_whitespace(line);
+      if (strlen(trimmed) == 0) continue;
 
-    char name[256]  = {0};
-    char spec[1024] = {0};
+      char sub_name[256] = {0};
 
-    char *space_pos        = strchr(trimmed, ' ');
-    char *tab_pos          = strchr(trimmed, '\t');
-    char *first_whitespace = NULL;
-    if (space_pos && tab_pos) {
-      first_whitespace = (space_pos < tab_pos) ? space_pos : tab_pos;
-    } else if (space_pos) {
-      first_whitespace = space_pos;
-    } else if (tab_pos) {
-      first_whitespace = tab_pos;
+      char *space_pos        = strchr(trimmed, ' ');
+      char *tab_pos          = strchr(trimmed, '\t');
+      char *first_whitespace = NULL;
+      if (space_pos && tab_pos) {
+        first_whitespace = (space_pos < tab_pos) ? space_pos : tab_pos;
+      } else if (space_pos) {
+        first_whitespace = space_pos;
+      } else if (tab_pos) {
+        first_whitespace = tab_pos;
+      }
+
+      if (first_whitespace) {
+        size_t name_len = first_whitespace - trimmed;
+        strncpy(sub_name, trimmed, name_len);
+        sub_name[name_len] = '\0';
+      } else {
+        strncpy(sub_name, trimmed, sizeof(sub_name) - 1);
+        sub_name[sizeof(sub_name) - 1] = '\0';
+      }
+
+      if (strlen(sub_name) == 0) continue;
+
+      process_dep_for_config(sub_name, dst_config);
     }
-
-    if (first_whitespace) {
-      size_t name_len = first_whitespace - trimmed;
-      strncpy(name, trimmed, name_len);
-      name[name_len] = '\0';
-      strcpy(spec, trim_whitespace(first_whitespace + 1));
-    } else {
-      strncpy(name, trimmed, sizeof(name) - 1);
-      name[sizeof(name) - 1] = '\0';
-    }
-
-    if (strlen(name) == 0) continue;
-
-    // Process sub-dependencies first
-    char sub_dep_path[PATH_MAX];
-    snprintf(sub_dep_path, sizeof(sub_dep_path), "lib/%s/.dep", name);
-    process_dep_file_for_config_mk(sub_dep_path);
-
-    // Then process this dependency if not already visited
-    if (!is_visited(name)) {
-      continue;
-    }
+    fclose(f);
   }
 
-  fclose(f);
+  // Mark as visited and add export.mk content
+  if (config_mark_visited(name) < 0) {
+    return -1;
+  }
+  process_dep_config_mk(name, dst_config);
   return 0;
 }
 
 static int rebuild_config_mk(void) {
+  config_clear_visited();
+
   char dep_dir[PATH_MAX];
   snprintf(dep_dir, sizeof(dep_dir), "lib/.dep");
   mkdir_recursive(dep_dir);
@@ -615,7 +619,6 @@ static int rebuild_config_mk(void) {
 
   fputs("CFLAGS+=-Ilib/.dep/include\n", config_mk);
 
-  // Process dependencies in order, adding their config.mk content
   FILE *f = fopen(".dep", "r");
   if (!f) {
     fclose(config_mk);
@@ -630,8 +633,7 @@ static int rebuild_config_mk(void) {
     char *trimmed = trim_whitespace(line);
     if (strlen(trimmed) == 0) continue;
 
-    char name[256]  = {0};
-    char spec[1024] = {0};
+    char name[256] = {0};
 
     char *space_pos        = strchr(trimmed, ' ');
     char *tab_pos          = strchr(trimmed, '\t');
@@ -648,7 +650,6 @@ static int rebuild_config_mk(void) {
       size_t name_len = first_whitespace - trimmed;
       strncpy(name, trimmed, name_len);
       name[name_len] = '\0';
-      strcpy(spec, trim_whitespace(first_whitespace + 1));
     } else {
       strncpy(name, trimmed, sizeof(name) - 1);
       name[sizeof(name) - 1] = '\0';
@@ -656,17 +657,13 @@ static int rebuild_config_mk(void) {
 
     if (strlen(name) == 0) continue;
 
-    // Process sub-dependencies first (recursively)
-    char sub_dep_path[PATH_MAX];
-    snprintf(sub_dep_path, sizeof(sub_dep_path), "lib/%s/.dep", name);
-    process_dep_file_for_config_mk(sub_dep_path);
-
-    // Then add this dependency's config.mk
-    process_dep_config_mk(name, config_mk);
+    process_dep_for_config(name, config_mk);
   }
 
   fclose(f);
   fclose(config_mk);
+
+  config_clear_visited();
   return 0;
 }
 
@@ -734,20 +731,16 @@ static int cmd_install(int argc, const char **argv) {
 
     if (install_dependency(name, spec) != 0) {
       fclose(f);
-      clear_visited();
       return 1;
     }
   }
 
   fclose(f);
 
-  // Rebuild config.mk from all installed dependencies
+  // Pass 2: Rebuild config.mk from all installed dependencies
   if (rebuild_config_mk() != 0) {
-    clear_visited();
     return 1;
   }
-
-  clear_visited();
 
   if (!has_deps) {
     printf("No dependencies to install\n");
